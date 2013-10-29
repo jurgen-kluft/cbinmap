@@ -5,45 +5,10 @@
 #include "xunittest\xunittest.h"
 #include "xunittest\private\ut_ReportAssert.h"
 
-UNITTEST_SUITE_LIST(xCoreUnitTest);
+UNITTEST_SUITE_LIST(xBinmapUnitTest);
 
+UNITTEST_SUITE_DECLARE(xBinmapUnitTest, bin);
 
-// SPU-only test list
-
-#ifdef SPU
-UNITTEST_SUITE_DECLARE(xCoreUnitTest, xsingleton);
-UNITTEST_SUITE_DECLARE(xCoreUnitTest, xallocator);
-UNITTEST_SUITE_DECLARE(xCoreUnitTest, xbinary_search);
-UNITTEST_SUITE_DECLARE(xCoreUnitTest, xqsort);
-UNITTEST_SUITE_DECLARE(xCoreUnitTest, xbitfield);
-UNITTEST_SUITE_DECLARE(xCoreUnitTest, xendian);
-UNITTEST_SUITE_DECLARE(xCoreUnitTest, xfloat);
-UNITTEST_SUITE_DECLARE(xCoreUnitTest, xinteger);
-UNITTEST_SUITE_DECLARE(xCoreUnitTest, xmemory_std);
-#endif
-
-#ifndef SPU
-UNITTEST_SUITE_DECLARE(xCoreUnitTest, xsingleton);
-UNITTEST_SUITE_DECLARE(xCoreUnitTest, xallocator);
-UNITTEST_SUITE_DECLARE(xCoreUnitTest, xcarray);
-UNITTEST_SUITE_DECLARE(xCoreUnitTest, xbinary_search);
-UNITTEST_SUITE_DECLARE(xCoreUnitTest, xqsort);
-UNITTEST_SUITE_DECLARE(xCoreUnitTest, xguid);
-UNITTEST_SUITE_DECLARE(xCoreUnitTest, xbitfield);
-UNITTEST_SUITE_DECLARE(xCoreUnitTest, xinteger);
-UNITTEST_SUITE_DECLARE(xCoreUnitTest, xfloat);
-UNITTEST_SUITE_DECLARE(xCoreUnitTest, xdouble);
-UNITTEST_SUITE_DECLARE(xCoreUnitTest, xendian);
-UNITTEST_SUITE_DECLARE(xCoreUnitTest, xsprintf);
-UNITTEST_SUITE_DECLARE(xCoreUnitTest, xmemory_std);
-UNITTEST_SUITE_DECLARE(xCoreUnitTest, xtree);
-UNITTEST_SUITE_DECLARE(xCoreUnitTest, xtls);
-UNITTEST_SUITE_DECLARE(xCoreUnitTest, xrbtree15);
-#endif
-
-#ifndef X_NO_CUSTOM_INT64
-UNITTEST_SUITE_DECLARE(xCoreUnitTest, __xint64);
-#endif // X_NO_CUSTOM_INT64
 
 namespace xcore
 {
@@ -117,15 +82,6 @@ xcore::UnitTestAssertHandler gAssertHandler;
 
 bool gRunUnitTest(UnitTest::TestReporter& reporter)
 {
-#ifdef SPU
-	xcore::s32 progSize;
-	xcore::s32 stackSize;
-
-	::getProgramAndStackSizeForSPU(&progSize, &stackSize);
-
-	xcore::gSetSPUConfig(progSize, stackSize);
-#endif
-
 #ifdef TARGET_DEBUG
 	xcore::x_asserthandler::sRegisterHandler(&gAssertHandler);
 #endif
@@ -140,7 +96,7 @@ bool gRunUnitTest(UnitTest::TestReporter& reporter)
 	gTestAllocator = &testAllocator;
 
 	xbase::x_Init();
-	int r = UNITTEST_SUITE_RUN(reporter, xCoreUnitTest);
+	int r = UNITTEST_SUITE_RUN(reporter, xBinmapUnitTest);
 	xbase::x_Exit();
 
 	gTestAllocator->release();
