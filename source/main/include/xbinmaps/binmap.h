@@ -143,10 +143,7 @@ namespace xcore
 		*/
 		static void copy(binmap_t& destination, const binmap_t& source, const bin_t& range);
 
-
-	private:
 #pragma pack(push, 1)
-
 		/**
 		* Structure of cell halves
 		*/
@@ -166,9 +163,21 @@ namespace xcore
 		{
 			half_t left_;
 			half_t right_;
-			bool is_left_ref_ : 1;
-			bool is_right_ref_ : 1;
-			bool is_free_ : 1;
+			enum eflags { eis_left_ref = 1, eis_right_ref = 2 };
+			u32 flags_;
+
+			bool is_left_ref() const { return (flags_ & eis_left_ref) == eis_left_ref; }
+			bool is_right_ref() const { return (flags_ & eis_right_ref) == eis_right_ref; }
+			void set_is_left_ref(bool flag) 
+			{
+				if (flag) flags_ = flags_ | eis_left_ref;
+				else flags_ = flags_ & ~eis_left_ref;
+			}
+			void set_is_right_ref(bool flag) 
+			{
+				if (flag) flags_ = flags_ | eis_right_ref;
+				else flags_ = flags_ & ~eis_right_ref;
+			}
 		};
 
 #pragma pack(pop)
@@ -179,9 +188,6 @@ namespace xcore
 
 		/** Allocates one cell */
 		ref_t alloc_cell();
-
-		/** Reserve cells allocation capacity */
-		bool reserve_cells(size_t count);
 
 		/** Releases the cell */
 		void free_cell(ref_t cell);
@@ -195,21 +201,27 @@ namespace xcore
 		/** Allocator used for allocating and freeing cells */
 		x_iidx_allocator* allocator;
 
-		/** Pointer to the list of blocks */
-		cell_t* cell_;
+		class cell_access
+		{
+		public:
+			inline				cell_access(x_iidx_allocator* _allocator) : _a(_allocator) {}
 
-		/** Number of available cells */
-		size_t cells_number_;
+			inline cell_t&		operator[](u32 i) { cell_t* cell_ptr = (cell_t *)_a->to_ptr(i); return *cell_ptr; }
+			inline cell_t const& operator[](u32 i) const { cell_t const* cell_ptr = (cell_t const*)_a->to_ptr(i); return *cell_ptr; }
+
+		private:
+			x_iidx_allocator*	_a;
+		};
+		cell_access	cell_;
 
 		/** Number of allocated cells */
 		size_t allocated_cells_number_;
 
-		/** Front of the free cell list */
-		ref_t free_top_;
+		/** The root cell */
+		ref_t root_ref_;
 
 		/** The root bin */
 		bin_t root_bin_;
-
 
 		/** Trace the bin */
 		void trace(ref_t* ref, bin_t* bin, const bin_t& target) const;
@@ -217,26 +229,21 @@ namespace xcore
 		/** Trace the bin */
 		void trace(ref_t* ref, bin_t* bin, ref_t** history, const bin_t& target) const;
 
-
 		/** Sets low layer bitmap */
 		void _set__low_layer_bitmap(const bin_t& bin, const bitmap_t bitmap);
 
 		/** Sets high layer bitmap */
 		void _set__high_layer_bitmap(const bin_t& bin, const bitmap_t bitmap);
 
-
 		/** Clone binmap cells to another binmap */
 		static void copy(binmap_t& destination, const ref_t dref, const binmap_t& source, const ref_t sref);
-
 		static void _copy__range(binmap_t& destination, const binmap_t& source, const ref_t sref, const bin_t sbin);
-
 
 		/** Find first additional bin in source */
 		static bin_t _find_complement(const bin_t& bin, const ref_t dref, const binmap_t& destination, const ref_t sref, const binmap_t& source, const u64 twist);
 		static bin_t _find_complement(const bin_t& bin, const bitmap_t dbitmap, const ref_t sref, const binmap_t& source, const u64 twist);
 		static bin_t _find_complement(const bin_t& bin, const ref_t dref, const binmap_t& destination, const bitmap_t sbitmap, const u64 twist);
 		static bin_t _find_complement(const bin_t& bin, const bitmap_t dbitmap, const bitmap_t sbitmap, const u64 twist);
-
 
 		/* Disabled */
 		binmap_t& operator = (const binmap_t&);
