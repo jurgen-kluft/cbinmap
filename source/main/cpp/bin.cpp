@@ -3,8 +3,8 @@
 namespace xcore
 {
 
-	const bin_t bin_t::NONE(8 * sizeof(u32), 0);
-	const bin_t bin_t::ALL(8 * sizeof(u32) - 1, 0);
+	const bin_t bin_t::NONE(8 * sizeof(u64), 0);
+	const bin_t bin_t::ALL(8 * sizeof(u64) - 1, 0);
 
 
 	/* Methods */
@@ -12,27 +12,28 @@ namespace xcore
 	/**
 	* Gets the layer value of a bin
 	*/
-	int bin_t::layer(void) const
+	s32 bin_t::layer(void) const
 	{
 		if (is_none()) 
 		{
 			return -1;
 		}
 
-		int r = 0;
+		s32 r = 0;
 
 	#ifdef _MSC_VER
 	#  pragma warning (push)
 	#  pragma warning (disable:4146)
 	#endif
-		register u32 tail;
+		register u64 tail;
 		tail = v_ + 1;
 		tail = tail & (-tail);
 	#ifdef _MSC_VER
 	#  pragma warning (pop)
 	#endif
 
-		if (tail > 0x80000000U) {
+		if (tail > 0x80000000U) 
+		{
 			r = 32;
 			tail >>= 16;    // FIXME: hide warning
 			tail >>= 16;
@@ -50,24 +51,27 @@ namespace xcore
 	namespace 
 	{
 
-		char* append(char* buf, int x)
+		char* append(char* buf, s32 x)
 		{
 			char* l = buf;
 			char* r = buf;
 
-			if (x < 0) {
+			if (x < 0)
+			{
 				*r++ = '-';
 				x = -x;
 			}
 
-			do {
+			do
+			{
 				*r++ = '0' + x % 10;
 				x /= 10;
 			} while (x);
 
 			char* e = r--;
 
-			while (l < r) {
+			while (l < r)
+			{
 				const char t = *l;
 				*l++ = *r;
 				*r-- = t;
@@ -78,19 +82,21 @@ namespace xcore
 			return e;
 		}
 
-		char* append(char* buf, u32 x)
+		char* append(char* buf, u64 x)
 		{
 			char* l = buf;
 			char* r = buf;
 
-			do {
+			do
+			{
 				*r++ = '0' + x % 10;
 				x /= 10;
 			} while (x);
 
 			char* e = r--;
 
-			while (l < r) {
+			while (l < r) 
+			{
 				const char t = *l;
 				*l++ = *r;
 				*r-- = t;
@@ -105,7 +111,8 @@ namespace xcore
 		{
 			char* e = buf;
 
-			while (*s) {
+			while (*s) 
+			{
 				*e++ = *s++;
 			}
 
@@ -135,11 +142,16 @@ namespace xcore
 	{
 		char* e = buf;
 
-		if (is_all()) {
+		if (is_all()) 
+		{
 			e = append(e, "(ALL)");
-		} else if (is_none()) {
+		}
+		else if (is_none()) 
+		{
 			e = append(e, "(NONE)");
-		} else {
+		}
+		else
+		{
 			e = append(e, '(');
 			e = append(e, layer());
 			e = append(e, ',');

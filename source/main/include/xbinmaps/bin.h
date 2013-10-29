@@ -7,7 +7,7 @@ namespace xcore
 	/**
 	 * Numbering for (aligned) logarithmic bins.
 	 *
-	 * Each number stands for an s32erval
+	 * Each number stands for an interval
 	 *   [layer_offset * 2^layer, (layer_offset + 1) * 2^layer).
 	 *
 	 * The following value is called as base_offset:
@@ -62,19 +62,19 @@ namespace xcore
 		/**
 		 * Constructor
 		 */
-		explicit bin_t(u32 val);
+		explicit bin_t(u64 val);
 
 
 		/**
 		 * Constructor
 		 */
-		bin_t(s32 layer, u32 layer_offset);
+		bin_t(s32 layer, u64 layer_offset);
 
 
 		/**
 		 * Gets the bin value
 		 */
-		u32 value(void) const;
+		u64 value(void) const;
 
 
 		/**
@@ -115,19 +115,19 @@ namespace xcore
 		/**
 		 * Decompose the bin
 		 */
-		void decompose(s32* layer, u32* layer_offset) const;
+		void decompose(s32* layer, u64* layer_offset) const;
 
 
 		/**
-		 * Gets the beginning of the bin(ary s32erval)
+		 * Gets the beginning of the bin(ary interval)
 		 */
-		u32 base_offset(void) const;
+		u64 base_offset(void) const;
 
 
 		/**
-		 * Gets the length of the bin s32erval
+		 * Gets the length of the bin interval
 		 */
-		u32 base_length(void) const;
+		u64 base_length(void) const;
 
 
 		/**
@@ -139,13 +139,13 @@ namespace xcore
 		/**
 		 * Gets the bin layer bits
 		 */
-		u32 layer_bits(void) const;
+		u64 layer_bits(void) const;
 
 
 		/**
 		 * Gets the bin layer offset
 		 */
-		u32 layer_offset(void) const;
+		u64 layer_offset(void) const;
 
 
 		/**
@@ -217,7 +217,7 @@ namespace xcore
 		/**
 		 * Sets this object to the permutated state
 		 */
-		bin_t& to_twisted(u32 mask);
+		bin_t& to_twisted(u64 mask);
 
 
 		/**
@@ -265,7 +265,7 @@ namespace xcore
 		/**
 		 * Performs a permutation
 		 */
-		bin_t twisted(u32 mask) const;
+		bin_t twisted(u64 mask) const;
 
 
 		/**
@@ -290,7 +290,7 @@ namespace xcore
 	private:
 
 		/** Bin value */
-		u32 v_;
+		u64 v_;
 	};
 
 	/**
@@ -303,7 +303,7 @@ namespace xcore
 	/**
 	 * Constructor
 	 */
-	inline bin_t::bin_t(u32 val)
+	inline bin_t::bin_t(u64 val)
 		: v_(val)
 	{ }
 
@@ -311,15 +311,15 @@ namespace xcore
 	/**
 	 * Constructor
 	 */
-	inline bin_t::bin_t(s32 layer, u32 offset)
+	inline bin_t::bin_t(s32 layer, u64 offset)
 	{
-		if (static_cast<s32>(layer) < 8 * sizeof(u32)) 
+		if (static_cast<s32>(layer) < 8 * sizeof(u64)) 
 		{
 			v_ = ((2 * offset + 1) << layer) - 1;
 		} 
 		else 
 		{
-			v_ = static_cast<u32>(-1); // Definition of the NONE bin
+			v_ = static_cast<u64>(-1); // Definition of the NONE bin
 		}
 	}
 
@@ -327,7 +327,7 @@ namespace xcore
 	/**
 	 * Gets the bin value
 	 */
-	inline u32 bin_t::value(void) const
+	inline u64 bin_t::value(void) const
 	{
 		return v_;
 	}
@@ -390,7 +390,7 @@ namespace xcore
 	/**
 	 * Decompose the bin
 	 */
-	inline void bin_t::decompose(s32* layer, u32* layer_offset) const
+	inline void bin_t::decompose(s32* layer, u64* layer_offset) const
 	{
 		const s32 l = this->layer();
 		if (layer)
@@ -405,24 +405,24 @@ namespace xcore
 
 
 	/**
-	 * Gets a beginning of the bin s32erval
+	 * Gets a beginning of the bin interval
 	 */
-	inline u32 bin_t::base_offset(void) const
+	inline u64 bin_t::base_offset(void) const
 	{
 		return (v_ & (v_ + 1)) >> 1;
 	}
 
 
 	/**
-	 * Gets the length of the bin s32erval
+	 * Gets the length of the bin interval
 	 */
-	inline u32 bin_t::base_length(void) const
+	inline u64 bin_t::base_length(void) const
 	{
 	#ifdef _MSC_VER
 	#pragma warning (push)
 	#pragma warning (disable:4146)
 	#endif
-		const u32 t = v_ + 1;
+		const u64 t = v_ + 1;
 		return t & -t;
 	#ifdef _MSC_VER
 	#pragma warning (pop)
@@ -433,7 +433,7 @@ namespace xcore
 	/**
 	 * Gets the layer bits
 	 */
-	inline u32 bin_t::layer_bits(void) const
+	inline u64 bin_t::layer_bits(void) const
 	{
 		return v_ ^ (v_ + 1);
 	}
@@ -442,7 +442,7 @@ namespace xcore
 	/**
 	 * Gets the offset value of a bin
 	 */
-	inline u32 bin_t::layer_offset(void) const
+	inline u64 bin_t::layer_offset(void) const
 	{
 		return v_ >> (layer() + 1);
 	}
@@ -498,8 +498,8 @@ namespace xcore
 	 */
 	inline bin_t& bin_t::to_parent(void)
 	{
-		const u32 lbs = layer_bits();
-		const u32 nlbs = -2 - lbs; /* ~(lbs + 1) */
+		const u64 lbs = layer_bits();
+		const u64 nlbs = -2 - lbs; /* ~(lbs + 1) */
 
 		v_ = (v_ | lbs) & nlbs;
 
@@ -512,7 +512,7 @@ namespace xcore
 	 */
 	inline bin_t& bin_t::to_left(void)
 	{
-		register u32 t;
+		register u64 t;
 
 	#ifdef _MSC_VER
 	#pragma warning (push)
@@ -540,7 +540,7 @@ namespace xcore
 	*/
 	inline bin_t& bin_t::to_right(void)
 	{
-		register u32 t;
+		register u64 t;
 
 	#ifdef _MSC_VER
 	#pragma warning (push)
@@ -605,7 +605,7 @@ namespace xcore
 	/**
 	 * Performs a permutation
 	 */
-	inline bin_t& bin_t::to_twisted(u32 mask)
+	inline bin_t& bin_t::to_twisted(u64 mask)
 	{
 		v_ ^= ((mask << 1) & ~layer_bits());
 
@@ -624,7 +624,7 @@ namespace xcore
 		} 
 		else 
 		{
-			v_ = (v_ >> zlayer) & ~static_cast<u32>(1);
+			v_ = (v_ >> zlayer) & ~static_cast<u64>(1);
 		}
 
 		return *this;
@@ -636,8 +636,8 @@ namespace xcore
 	 */
 	inline bin_t bin_t::parent(void) const
 	{
-		const u32 lbs = layer_bits();
-		const u32 nlbs = -2 - lbs; /* ~(lbs + 1) */
+		const u64 lbs = layer_bits();
+		const u64 nlbs = -2 - lbs; /* ~(lbs + 1) */
 
 		return bin_t((v_ | lbs) & nlbs);
 	}
@@ -648,7 +648,7 @@ namespace xcore
 	 */
 	inline bin_t bin_t::left(void) const
 	{
-		register u32 t;
+		register u64 t;
 
 	#ifdef _MSC_VER
 	#pragma warning (push)
@@ -674,7 +674,7 @@ namespace xcore
 	 */
 	inline bin_t bin_t::right(void) const
 	{
-		register u32 t;
+		register u64 t;
 
 	#ifdef _MSC_VER
 	#pragma warning (push)
@@ -735,7 +735,7 @@ namespace xcore
 	/**
 	 * Performs a permutation
 	 */
-	inline bin_t bin_t::twisted(u32 mask) const
+	inline bin_t bin_t::twisted(u64 mask) const
 	{
 		return bin_t( v_ ^ ((mask << 1) & ~layer_bits()) );
 	}
@@ -752,7 +752,7 @@ namespace xcore
 		}
 		else 
 		{
-			return bin_t( (v_ >> zlayer) & ~static_cast<u32>(1) );
+			return bin_t( (v_ >> zlayer) & ~static_cast<u64>(1) );
 		}
 	}
 

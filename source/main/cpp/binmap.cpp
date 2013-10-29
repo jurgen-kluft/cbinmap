@@ -18,7 +18,7 @@ namespace xcore
 	const bitmap_t BITMAP_EMPTY  = static_cast<bitmap_t>(0);
 	const bitmap_t BITMAP_FILLED = static_cast<bitmap_t>(-1);
 
-	const u32 BITMAP_LAYER_BITS = 2 * 8 * sizeof(bitmap_t) - 1;
+	const u64 BITMAP_LAYER_BITS = 2 * 8 * sizeof(bitmap_t) - 1;
 
 	const ref_t ROOT_REF = 0;
 
@@ -27,7 +27,8 @@ namespace xcore
 #  pragma warning ( disable:4309 )
 #endif
 
-	const bitmap_t BITMAP[] = {
+	const bitmap_t BITMAP[] =
+	{
 		static_cast<bitmap_t>(0x00000001), static_cast<bitmap_t>(0x00000003),
 		static_cast<bitmap_t>(0x00000002), static_cast<bitmap_t>(0x0000000f),
 		static_cast<bitmap_t>(0x00000004), static_cast<bitmap_t>(0x0000000c),
@@ -70,9 +71,10 @@ namespace xcore
 	/**
 	* Get the leftmost bin that corresponded to bitmap (the bin is filled in bitmap)
 	*/
-	u32 bitmap_to_bin(bitmap_t b)
+	u64 bitmap_to_bin(bitmap_t b)
 	{
-		static const unsigned char BITMAP_TO_BIN[] = {
+		static const unsigned char BITMAP_TO_BIN[] =
+		{
 			0xff, 0, 2, 1, 4, 0, 2, 1, 6, 0, 2, 1, 5, 0, 2, 3,
 			8, 0, 2, 1, 4, 0, 2, 1, 6, 0, 2, 1, 5, 0, 2, 3,
 			10, 0, 2, 1, 4, 0, 2, 1, 6, 0, 2, 1, 5, 0, 2, 3,
@@ -97,17 +99,21 @@ namespace xcore
 		unsigned char t;
 
 		t = BITMAP_TO_BIN[ b & 0xff ];
-		if (t < 16) {
-			if (t != 7) {
-				return static_cast<u32>(t);
+		if (t < 16)
+		{
+			if (t != 7)
+			{
+				return static_cast<u64>(t);
 			}
 
 			b += 1;
 			b &= -b;
-			if (0 == b) {
+			if (0 == b)
+			{
 				return BITMAP_LAYER_BITS / 2;
 			}
-			if (0 == (b & 0xffff)) {
+			if (0 == (b & 0xffff)) 
+			{
 				return 15;
 			}
 			return 7;
@@ -115,7 +121,8 @@ namespace xcore
 
 		b >>= 8;
 		t = BITMAP_TO_BIN[ b & 0xff ];
-		if (t <= 15) {
+		if (t <= 15)
+		{
 			return 16 + t;
 		}
 
@@ -126,14 +133,17 @@ namespace xcore
 
 		b >>= 8;
 		t = BITMAP_TO_BIN[ b & 0xff ];
-		if (t < 16) {
-			if (t != 7) {
-				return 32 + static_cast<u32>(t);
+		if (t < 16)
+		{
+			if (t != 7)
+			{
+				return 32 + static_cast<u64>(t);
 			}
 
 			b += 1;
 			b &= -b;
-			if (0 == (b & 0xffff)) {
+			if (0 == (b & 0xffff))
+			{
 				return 47;
 			}
 			return 39;
@@ -151,7 +161,8 @@ namespace xcore
 	{
 		ASSERT (bitmap != BITMAP_EMPTY);
 
-		if (bitmap == BITMAP_FILLED) {
+		if (bitmap == BITMAP_FILLED)
+		{
 			return bin;
 		}
 
@@ -892,7 +903,7 @@ namespace xcore
 	* @param source
 	*             the source binmap
 	*/
-	bin_t binmap_t::find_complement(const binmap_t& destination, const binmap_t& source, const u32 twist)
+	bin_t binmap_t::find_complement(const binmap_t& destination, const binmap_t& source, const u64 twist)
 	{
 		return find_complement(destination, source, bin_t::ALL, twist);
 
@@ -995,7 +1006,7 @@ namespace xcore
 						}
 						else 
 						{
-							u32 s = twist & (b.left().base_length() - 1);
+							u64 s = twist & (b.left().base_length() - 1);
 							/* Sorry for the following hardcode hack: Flow the highest bit of s */
 							s |= s >> 1; s |= s >> 2;
 							s |= s >> 4; s |= s >> 8;
@@ -1025,7 +1036,7 @@ namespace xcore
 	}
 
 
-	bin_t binmap_t::find_complement(const binmap_t& destination, const binmap_t& source, bin_t range, const u32 twist)
+	bin_t binmap_t::find_complement(const binmap_t& destination, const binmap_t& source, bin_t range, const u64 twist)
 	{
 		ref_t sref = ROOT_REF;
 		bitmap_t sbitmap = BITMAP_EMPTY;
@@ -1229,7 +1240,7 @@ namespace xcore
 							} 
 							else 
 							{
-								u32 s = twist & (b.left().base_length() - 1);
+								u64 s = twist & (b.left().base_length() - 1);
 								/* Sorry for the following hardcode hack: Flow the highest bit of s */
 								s |= s >> 1; s |= s >> 2;
 								s |= s >> 4; s |= s >> 8;
@@ -1274,7 +1285,7 @@ namespace xcore
 				} 
 				else 
 				{
-					u32 s = twist & (range.base_length() - 1);
+					u64 s = twist & (range.base_length() - 1);
 					/* Sorry for the following hardcode hack: Flow the highest bit of s */
 					s |= s >> 1; s |= s >> 2;
 					s |= s >> 4; s |= s >> 8;
@@ -1287,7 +1298,7 @@ namespace xcore
 	}
 
 
-	bin_t binmap_t::_find_complement(const bin_t& bin, const ref_t dref, const binmap_t& destination, const ref_t sref, const binmap_t& source, const u32 twist)
+	bin_t binmap_t::_find_complement(const bin_t& bin, const ref_t dref, const binmap_t& destination, const ref_t sref, const binmap_t& source, const u64 twist)
 	{
 		/* Initialization */
 		SDSTACK();
@@ -1379,7 +1390,7 @@ namespace xcore
 	}
 
 
-	bin_t binmap_t::_find_complement(const bin_t& bin, const bitmap_t dbitmap, const ref_t sref, const binmap_t& source, const u32 twist)
+	bin_t binmap_t::_find_complement(const bin_t& bin, const bitmap_t dbitmap, const ref_t sref, const binmap_t& source, const u64 twist)
 	{
 		ASSERT (dbitmap != BITMAP_EMPTY || sref != ROOT_REF ||
 			source.cell_[ROOT_REF].is_left_ref_ ||
@@ -1427,7 +1438,7 @@ namespace xcore
 	}
 
 
-	bin_t binmap_t::_find_complement(const bin_t& bin, const ref_t dref, const binmap_t& destination, const bitmap_t sbitmap, const u32 twist)
+	bin_t binmap_t::_find_complement(const bin_t& bin, const ref_t dref, const binmap_t& destination, const bitmap_t sbitmap, const u64 twist)
 	{
 		/* Initialization */
 		DSTACK();
@@ -1467,7 +1478,7 @@ namespace xcore
 	}
 
 
-	bin_t binmap_t::_find_complement(const bin_t& bin, const bitmap_t dbitmap, const bitmap_t sbitmap, u32 twist)
+	bin_t binmap_t::_find_complement(const bin_t& bin, const bitmap_t dbitmap, const bitmap_t sbitmap, u64 twist)
 	{
 		bitmap_t bitmap = sbitmap & ~dbitmap;
 
@@ -1549,9 +1560,9 @@ namespace xcore
 				//
 				// see tests/binstest3.cpp
 
-				u32 rangestart = bin.base_left().twisted(twist & ~0x1f).layer_offset();
-				u32 b2b = bitmap_to_bin(bitmap);
-				u32 absoff = ((int)(rangestart/32))*32 + b2b/2;
+				u64 rangestart = bin.base_left().twisted(twist & ~0x1f).layer_offset();
+				u64 b2b = bitmap_to_bin(bitmap);
+				u64 absoff = ((int)(rangestart/32))*32 + b2b/2;
 
 				diff = bin_t(0,absoff);
 				diff = diff.to_twisted(twist & 0x1f);

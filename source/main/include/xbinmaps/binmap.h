@@ -123,13 +123,13 @@ namespace xcore
 		/**
 		* Find first additional bin in source
 		*/
-		static bin_t find_complement(const binmap_t& destination, const binmap_t& source, const u32 twist);
+		static bin_t find_complement(const binmap_t& destination, const binmap_t& source, const u64 twist);
 
 
 		/**
 		* Find first additional bin of the source inside specified range
 		*/
-		static bin_t find_complement(const binmap_t& destination, const binmap_t& source, bin_t range, const u32 twist);
+		static bin_t find_complement(const binmap_t& destination, const binmap_t& source, bin_t range, const u64 twist);
 
 
 		/**
@@ -232,10 +232,10 @@ namespace xcore
 
 
 		/** Find first additional bin in source */
-		static bin_t _find_complement(const bin_t& bin, const ref_t dref, const binmap_t& destination, const ref_t sref, const binmap_t& source, const u32 twist);
-		static bin_t _find_complement(const bin_t& bin, const bitmap_t dbitmap, const ref_t sref, const binmap_t& source, const u32 twist);
-		static bin_t _find_complement(const bin_t& bin, const ref_t dref, const binmap_t& destination, const bitmap_t sbitmap, const u32 twist);
-		static bin_t _find_complement(const bin_t& bin, const bitmap_t dbitmap, const bitmap_t sbitmap, const u32 twist);
+		static bin_t _find_complement(const bin_t& bin, const ref_t dref, const binmap_t& destination, const ref_t sref, const binmap_t& source, const u64 twist);
+		static bin_t _find_complement(const bin_t& bin, const bitmap_t dbitmap, const ref_t sref, const binmap_t& source, const u64 twist);
+		static bin_t _find_complement(const bin_t& bin, const ref_t dref, const binmap_t& destination, const bitmap_t sbitmap, const u64 twist);
+		static bin_t _find_complement(const bin_t& bin, const bitmap_t dbitmap, const bitmap_t sbitmap, const u64 twist);
 
 
 		/* Disabled */
