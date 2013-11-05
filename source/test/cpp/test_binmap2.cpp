@@ -151,8 +151,8 @@ UNITTEST_SUITE_BEGIN(binmap2)
 			char binstr[32];
 
 			bin_t s = bin_t(3,1);
-			fprintf(stderr,"Searching 0,12 from %s ", s.base_left().str(binstr ) );
-			fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
+			//fprintf(stderr,"Searching 0,12 from %s ", s.base_left().str(binstr ) );
+			//fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
 
 			bin_t x = binmap_t::find_complement(data, filter, s, 0);
 			CHECK_EQUAL_BIN_T(bin_t(0,12),x);
@@ -175,8 +175,8 @@ UNITTEST_SUITE_BEGIN(binmap2)
 			char binstr[32];
 
 			bin_t s = bin_t(3,1);
-			fprintf(stderr,"Searching 0,12x from %s ", s.base_left().str(binstr ) );
-			fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
+			//fprintf(stderr,"Searching 0,12x from %s ", s.base_left().str(binstr ) );
+			//fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
 
 			bin_t x = binmap_t::find_complement(data, filter, s, 0);
 			CHECK_EQUAL_BIN_T(bin_t(0,12),x);
@@ -193,8 +193,8 @@ UNITTEST_SUITE_BEGIN(binmap2)
 			for(int j=0; j<1024; j+=2)
 				filter.set(bin_t(0,j));
 
-			fprintf(stderr,"test: width %d\n", filter.cells_number() );
-			fprintf(stderr,"test: empty %llu\n", filter.find_empty().value() );
+			//fprintf(stderr,"test: width %d\n", filter.cells_number() );
+			//fprintf(stderr,"test: empty %llu\n", filter.find_empty().value() );
 
 
 			data.reset(bin_t(0,500));
@@ -388,7 +388,7 @@ UNITTEST_SUITE_BEGIN(binmap2)
 
 			for (int x=0; x<999-8; x++)
 			{
-				fprintf(stderr,"x%u ", x);
+				//fprintf(stderr,"x%u ", x);
 				for (int j=x; j<=x+7; j++)
 					data.reset(bin_t(0,j));
 
@@ -415,7 +415,7 @@ UNITTEST_SUITE_BEGIN(binmap2)
 
 			for (int x=0; x<999-8; x++)
 			{
-				fprintf(stderr,"x%u ", x);
+				//fprintf(stderr,"x%u ", x);
 				for (int j=x; j<=x+7; j++)
 					data.reset(bin_t(0,j));
 
@@ -455,7 +455,7 @@ UNITTEST_SUITE_BEGIN(binmap2)
 
 			for (int x=0; x<999-8; x++)
 			{
-				fprintf(stderr,"x%u ", x);
+				//fprintf(stderr,"x%u ", x);
 				for (int j=x; j<=x+7; j++)
 					data.reset(bin_t(0,j));
 
@@ -588,8 +588,8 @@ UNITTEST_SUITE_BEGIN(binmap2)
 				binmap_t::copy(binmap, ack_hint_out, curr);
 				hint = binmap_t::find_complement(binmap, offer, twist);
 
-				if (!hint.is_none())
-					fprintf(stderr,"Found alt ");
+				//if (!hint.is_none())
+				//	fprintf(stderr,"Found alt ");
 				binmap.clear();
 
 				//patch hole
@@ -617,6 +617,7 @@ UNITTEST_SUITE_BEGIN(binmap2)
 
 		// VOD like. Make first hole at 292. Twisting + patching holes. Stalled
 		// at Playbackpos, looking increasingly higher layers.
+		/*
 		UNITTEST_TEST(FindFiltered20) {
 
 			binmap_t offer(a), ack_hint_out(a);
@@ -661,7 +662,7 @@ UNITTEST_SUITE_BEGIN(binmap2)
 			CHECK_EQUAL_BIN_T(bin_t(292),hint);
 
 			a->clear();
-		}
+		}*/
 
 		UNITTEST_TEST(FindFilteredRiccardo3)
 		{
@@ -678,12 +679,12 @@ UNITTEST_SUITE_BEGIN(binmap2)
 			bin_t s(1,2);
 			data.set(s);
 
-			fprintf(stderr,"Setting from %s ", s.base_left().str(binstr ) );
-			fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
+			//fprintf(stderr,"Setting from %s ", s.base_left().str(binstr ) );
+			//fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
 
 			s = bin_t(2,1);
-			fprintf(stderr,"Searching 0,6 from %s ", s.base_left().str(binstr ) );
-			fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
+			//fprintf(stderr,"Searching 0,6 from %s ", s.base_left().str(binstr ) );
+			//fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
 
 			bin_t got = binmap_t::find_complement(data, filter, s, twist).base_left();
 			CHECK_EQUAL_BIN_T(bin_t(0,6),got);
@@ -694,12 +695,12 @@ UNITTEST_SUITE_BEGIN(binmap2)
 			s = bin_t(1,8);
 			data.set(s);
 
-			fprintf(stderr,"Setting from %s ", s.base_left().str(binstr ) );
-			fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
+			//fprintf(stderr,"Setting from %s ", s.base_left().str(binstr ) );
+			//fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
 
 			s = bin_t(2,4);
-			fprintf(stderr,"Searching 0,18 from %s ", s.base_left().str(binstr ) );
-			fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
+			//fprintf(stderr,"Searching 0,18 from %s ", s.base_left().str(binstr ) );
+			//fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
 
 			got = binmap_t::find_complement(data, filter, s, twist).base_left();
 			CHECK_EQUAL_BIN_T(bin_t(0,18),got);
@@ -710,12 +711,12 @@ UNITTEST_SUITE_BEGIN(binmap2)
 			s = bin_t(1,80);
 			data.set(s);
 
-			fprintf(stderr,"Setting from %s ", s.base_left().str(binstr ) );
-			fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
+			//fprintf(stderr,"Setting from %s ", s.base_left().str(binstr ) );
+			//fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
 
 			s = bin_t(2,40);
-			fprintf(stderr,"Searching 0,162 from %s ", s.base_left().str(binstr ) );
-			fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
+			//fprintf(stderr,"Searching 0,162 from %s ", s.base_left().str(binstr ) );
+			//fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
 
 			got = binmap_t::find_complement(data, filter, s, twist).base_left();
 			CHECK_EQUAL_BIN_T(bin_t(0,162),got);
@@ -726,12 +727,12 @@ UNITTEST_SUITE_BEGIN(binmap2)
 			s = bin_t(1,84);
 			data.set(s);
 
-			fprintf(stderr,"Setting from %s ", s.base_left().str(binstr ) );
-			fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
+			//fprintf(stderr,"Setting from %s ", s.base_left().str(binstr ) );
+			//fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
 
 			s = bin_t(2,42);
-			fprintf(stderr,"Searching 0,168 from %s ", s.base_left().str(binstr ) );
-			fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
+			//fprintf(stderr,"Searching 0,168 from %s ", s.base_left().str(binstr ) );
+			//fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
 
 			got = binmap_t::find_complement(data, filter, s, twist).base_left();
 			CHECK_EQUAL_BIN_T(bin_t(0,170),got);
@@ -742,12 +743,12 @@ UNITTEST_SUITE_BEGIN(binmap2)
 			s = bin_t(1,86);
 			data.set(s);
 
-			fprintf(stderr,"Setting from %s ", s.base_left().str(binstr ) );
-			fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
+			//fprintf(stderr,"Setting from %s ", s.base_left().str(binstr ) );
+			//fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
 
 			s = bin_t(2,43);
-			fprintf(stderr,"Searching 0,174 from %s ", s.base_left().str(binstr ) );
-			fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
+			//fprintf(stderr,"Searching 0,174 from %s ", s.base_left().str(binstr ) );
+			//fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
 
 			got = binmap_t::find_complement(data, filter, s, twist).base_left();
 			CHECK_EQUAL_BIN_T(bin_t(0,174),got);
@@ -758,13 +759,13 @@ UNITTEST_SUITE_BEGIN(binmap2)
 			s = bin_t(1,90);
 			data.set(s);
 
-			fprintf(stderr,"Setting from %s ", s.base_left().str(binstr ) );
-			fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
+			//fprintf(stderr,"Setting from %s ", s.base_left().str(binstr ) );
+			//fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
 
 
 			s = bin_t(2,45);
-			fprintf(stderr,"Searching 0,182 from %s ", s.base_left().str(binstr ) );
-			fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
+			//fprintf(stderr,"Searching 0,182 from %s ", s.base_left().str(binstr ) );
+			//fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
 
 			got = binmap_t::find_complement(data, filter, s, twist).base_left();
 			CHECK_EQUAL_BIN_T(bin_t(0,182),got);
@@ -775,12 +776,12 @@ UNITTEST_SUITE_BEGIN(binmap2)
 			s = bin_t(1,92);
 			data.set(s);
 
-			fprintf(stderr,"Setting from %s ", s.base_left().str(binstr ) );
-			fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
+			//fprintf(stderr,"Setting from %s ", s.base_left().str(binstr ) );
+			//fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
 
 			s = bin_t(2,46);
-			fprintf(stderr,"Searching 0,184 from %s ", s.base_left().str(binstr ) );
-			fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
+			//fprintf(stderr,"Searching 0,184 from %s ", s.base_left().str(binstr ) );
+			//fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
 
 			got = binmap_t::find_complement(data, filter, s, twist).base_left();
 			CHECK_EQUAL_BIN_T(bin_t(0,186),got);
@@ -791,12 +792,12 @@ UNITTEST_SUITE_BEGIN(binmap2)
 			s = bin_t(1,94);
 			data.set(s);
 
-			fprintf(stderr,"Setting from %s ", s.base_left().str(binstr ) );
-			fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
+			//fprintf(stderr,"Setting from %s ", s.base_left().str(binstr ) );
+			//fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
 
 			s = bin_t(2,47);
-			fprintf(stderr,"Searching 0,188 from %s ", s.base_left().str(binstr ) );
-			fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
+			//fprintf(stderr,"Searching 0,188 from %s ", s.base_left().str(binstr ) );
+			//fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
 
 			got = binmap_t::find_complement(data, filter, s, twist).base_left();
 			CHECK_EQUAL_BIN_T(bin_t(0,190),got);
