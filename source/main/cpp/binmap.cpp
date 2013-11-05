@@ -73,20 +73,21 @@ namespace xcore
 	{
 		static const unsigned char BITMAP_TO_BIN[] =
 		{
-			0xff, 0, 2, 1, 4, 0, 2, 1, 6, 0, 2, 1, 5, 0, 2, 3,
-			8, 0, 2, 1, 4, 0, 2, 1, 6, 0, 2, 1, 5, 0, 2, 3,
+			0xff, 
+			    0, 2, 1, 4, 0, 2, 1, 6, 0, 2, 1, 5, 0, 2, 3,
+			 8, 0, 2, 1, 4, 0, 2, 1, 6, 0, 2, 1, 5, 0, 2, 3,
 			10, 0, 2, 1, 4, 0, 2, 1, 6, 0, 2, 1, 5, 0, 2, 3,
-			9, 0, 2, 1, 4, 0, 2, 1, 6, 0, 2, 1, 5, 0, 2, 3,
+			 9, 0, 2, 1, 4, 0, 2, 1, 6, 0, 2, 1, 5, 0, 2, 3,
 			12, 0, 2, 1, 4, 0, 2, 1, 6, 0, 2, 1, 5, 0, 2, 3,
-			8, 0, 2, 1, 4, 0, 2, 1, 6, 0, 2, 1, 5, 0, 2, 3,
+			 8, 0, 2, 1, 4, 0, 2, 1, 6, 0, 2, 1, 5, 0, 2, 3,
 			10, 0, 2, 1, 4, 0, 2, 1, 6, 0, 2, 1, 5, 0, 2, 3,
-			9, 0, 2, 1, 4, 0, 2, 1, 6, 0, 2, 1, 5, 0, 2, 3,
+			 9, 0, 2, 1, 4, 0, 2, 1, 6, 0, 2, 1, 5, 0, 2, 3,
 			14, 0, 2, 1, 4, 0, 2, 1, 6, 0, 2, 1, 5, 0, 2, 3,
-			8, 0, 2, 1, 4, 0, 2, 1, 6, 0, 2, 1, 5, 0, 2, 3,
+			 8, 0, 2, 1, 4, 0, 2, 1, 6, 0, 2, 1, 5, 0, 2, 3,
 			10, 0, 2, 1, 4, 0, 2, 1, 6, 0, 2, 1, 5, 0, 2, 3,
-			9, 0, 2, 1, 4, 0, 2, 1, 6, 0, 2, 1, 5, 0, 2, 3,
+			 9, 0, 2, 1, 4, 0, 2, 1, 6, 0, 2, 1, 5, 0, 2, 3,
 			13, 0, 2, 1, 4, 0, 2, 1, 6, 0, 2, 1, 5, 0, 2, 3,
-			8, 0, 2, 1, 4, 0, 2, 1, 6, 0, 2, 1, 5, 0, 2, 3,
+			 8, 0, 2, 1, 4, 0, 2, 1, 6, 0, 2, 1, 5, 0, 2, 3,
 			10, 0, 2, 1, 4, 0, 2, 1, 6, 0, 2, 1, 5, 0, 2, 3,
 			11, 0, 2, 1, 4, 0, 2, 1, 6, 0, 2, 1, 5, 0, 2, 7
 		};
@@ -201,6 +202,7 @@ namespace xcore
 	{
 		void *p;
 		ref_t ref = allocator->iallocate(p);
+		ASSERT(p!=NULL);
 		++allocated_cells_number_;
 		return ref;
 	}
@@ -213,9 +215,9 @@ namespace xcore
 	{
 		void *p;
 		ref_t ref = allocator->iallocate(p);
+		ASSERT(p!=NULL);
 		cell_t* cell = (cell_t*)p;
 		x_memset(cell, 0, sizeof(cell_t));
-
 		return ref;
 	}
 
@@ -246,10 +248,6 @@ namespace xcore
 		{
 			/* Allocate new cell */
 			const ref_t ref = alloc_cell();
-			if (ref == root_ref_) 
-			{
-				return false /* ALLOC ERROR */;
-			}
 
 			/* Move old root to the cell */
 			cell_[ref] = cell_[root_ref_];
@@ -279,32 +277,32 @@ namespace xcore
 			return;
 		}
 
-		if (cell_[ref].is_left_ref() || cell_[ref].is_right_ref() || cell_[ref].left_.bitmap_ != cell_[ref].right_.bitmap_)
+		cell_t* ref_cell = &cell_[ref];
+		if (ref_cell->is_left_ref() || ref_cell->is_right_ref() || ref_cell->left_.bitmap_ != ref_cell->right_.bitmap_)
 		{
 			return;
 		}
 
-		const bitmap_t bitmap = cell_[ref].left_.bitmap_;
+		const bitmap_t bitmap = ref_cell->left_.bitmap_;
 
 		do 
 		{
 			ref = *href--;
+			ref_cell = &cell_[ref];
 
-			if (!cell_[ref].is_left_ref())
+			if (!ref_cell->is_left_ref())
 			{
-				if (cell_[ref].left_.bitmap_ != bitmap)
+				if (ref_cell->left_.bitmap_ != bitmap)
 				{
 					break;
 				}
-
 			}
-			else if (!cell_[ref].is_right_ref()) 
+			else if (!ref_cell->is_right_ref()) 
 			{
-				if (cell_[ref].right_.bitmap_ != bitmap)
+				if (ref_cell->right_.bitmap_ != bitmap)
 				{
 					break;
 				}
-
 			}
 			else
 			{
@@ -314,16 +312,17 @@ namespace xcore
 		} while (ref != root_ref_);
 
 		const ref_t par_ref = href[2];
-
-		if (cell_[ref].is_left_ref() && cell_[ref].left_.ref_ == par_ref)
+		
+		ref_cell = &cell_[ref];
+		if (ref_cell->is_left_ref() && ref_cell->left_.ref_ == par_ref)
 		{
-			cell_[ref].set_is_left_ref(false);
-			cell_[ref].left_.bitmap_ = bitmap;
+			ref_cell->set_is_left_ref(false);
+			ref_cell->left_.bitmap_ = bitmap;
 		} 
 		else
 		{
-			cell_[ref].set_is_right_ref(false);
-			cell_[ref].right_.bitmap_ = bitmap;
+			ref_cell->set_is_right_ref(false);
+			ref_cell->right_.bitmap_ = bitmap;
 		}
 
 		free_cell(par_ref);
@@ -1354,11 +1353,11 @@ namespace xcore
 		{
 			if (twist & 1)
 			{
-				bitmap = ((bitmap & 0x5555) << 1)  | ((bitmap & 0xAAAA) >> 1);
+				bitmap = ((bitmap & 0x5555) << 1)  | ((bitmap & 0xaaaa) >> 1);
 			}
 			if (twist & 2) 
 			{
-				bitmap = ((bitmap & 0x3333) << 2)  | ((bitmap & 0xCCCC) >> 2);
+				bitmap = ((bitmap & 0x3333) << 2)  | ((bitmap & 0xcccc) >> 2);
 			}
 			if (twist & 4) 
 			{
@@ -1378,11 +1377,11 @@ namespace xcore
 		{
 			if (twist & 1) 
 			{
-				bitmap = ((bitmap & 0x55555555) << 1)  | ((bitmap & 0xAAAAAAAA) >> 1);
+				bitmap = ((bitmap & 0x55555555) << 1)  | ((bitmap & 0xaaaaaaaa) >> 1);
 			}
 			if (twist & 2) 
 			{
-				bitmap = ((bitmap & 0x33333333) << 2)  | ((bitmap & 0xCCCCCCCC) >> 2);
+				bitmap = ((bitmap & 0x33333333) << 2)  | ((bitmap & 0xcccccccc) >> 2);
 			}
 			if (twist & 4)
 			{
@@ -1793,9 +1792,8 @@ namespace xcore
 		{
 			/* Trivial case */
 			if (bitmap == BITMAP_EMPTY) 
-			{
 				return;
-			}
+
 			do
 			{
 				if (!extend_root()) 
@@ -1808,13 +1806,13 @@ namespace xcore
 		/* Get the pre-range */
 		const bin_t pre_bin( (bin.value() & (~(BITMAP_LAYER_BITS + 1))) | BITMAP_LAYER_BITS );
 
-		/* The trace the bin with history */
+		/* Trace the bin with history */
 		ref_t _href[64];
 		ref_t* href = _href;
 		ref_t cur_ref;
 		bin_t cur_bin;
 
-		/* Process first stage -- do not touch existed tree */
+		/* Process first stage -- do not touch existing tree */
 		trace(&cur_ref, &cur_bin, &href, pre_bin);
 
 		ASSERT (cur_bin.layer_bits() > BITMAP_LAYER_BITS);
@@ -1860,22 +1858,23 @@ namespace xcore
 		do 
 		{
 			const ref_t ref = _alloc_cell();
+			cell_t& ref_cell = cell_[ref];
+			ref_cell.set_is_left_ref(false);
+			ref_cell.set_is_right_ref(false);
+			ref_cell.left_.bitmap_ = bm;
+			ref_cell.right_.bitmap_ = bm;
 
-			cell_[ref].set_is_left_ref(false);
-			cell_[ref].set_is_right_ref(false);
-			cell_[ref].left_.bitmap_ = bm;
-			cell_[ref].right_.bitmap_ = bm;
-
+			cell_t& cur_cell = cell_[cur_ref];
 			if (pre_bin < cur_bin)
 			{
-				cell_[cur_ref].set_is_left_ref(true);
-				cell_[cur_ref].left_.ref_ = ref;
+				cur_cell.set_is_left_ref(true);
+				cur_cell.left_.ref_ = ref;
 				cur_bin.to_left();
 			}
 			else 
 			{
-				cell_[cur_ref].set_is_right_ref(true);
-				cell_[cur_ref].right_.ref_ = ref;
+				cur_cell.set_is_right_ref(true);
+				cur_cell.right_.ref_ = ref;
 				cur_bin.to_right();
 			}
 
@@ -1888,11 +1887,13 @@ namespace xcore
 		/* Complete setting */
 		if (bin < cur_bin) 
 		{
-			cell_[cur_ref].left_.bitmap_ = (cell_[cur_ref].left_.bitmap_ & ~bin_bitmap) | bitmap;
+			cell_t& cur_cell = cell_[cur_ref];
+			cur_cell.left_.bitmap_ = (cur_cell.left_.bitmap_ & ~bin_bitmap) | bitmap;
 		}
 		else 
 		{
-			cell_[cur_ref].right_.bitmap_ = (cell_[cur_ref].right_.bitmap_ & ~bin_bitmap) | bitmap;
+			cell_t& cur_cell = cell_[cur_ref];
+			cur_cell.right_.bitmap_ = (cur_cell.right_.bitmap_ & ~bin_bitmap) | bitmap;
 		}
 	}
 
@@ -1957,7 +1958,8 @@ namespace xcore
 		bitmap_t bm = BITMAP_EMPTY;
 		{
 			cell_t& cell = cell_[cur_ref];
-			if (bin < cur_bin) {
+			if (bin < cur_bin)
+			{
 				if (cell.is_left_ref()) 
 				{
 					/* ASSERT (cur_bin == pre_bin); */
@@ -2008,22 +2010,23 @@ namespace xcore
 		do
 		{
 			const ref_t ref = _alloc_cell();
+			cell_t& ref_cell = cell_[ref];
+			ref_cell.set_is_left_ref(false);
+			ref_cell.set_is_right_ref(false);
+			ref_cell.left_.bitmap_ = bm;
+			ref_cell.right_.bitmap_ = bm;
 
-			cell_[ref].set_is_left_ref(false);
-			cell_[ref].set_is_right_ref(false);
-			cell_[ref].left_.bitmap_ = bm;
-			cell_[ref].right_.bitmap_ = bm;
-
+			cell_t& cur_cell = cell_[cur_ref];
 			if (pre_bin < cur_bin)
 			{
-				cell_[cur_ref].set_is_left_ref(true);
-				cell_[cur_ref].left_.ref_ = ref;
+				cur_cell.set_is_left_ref(true);
+				cur_cell.left_.ref_ = ref;
 				cur_bin.to_left();
 			}
 			else
 			{
-				cell_[cur_ref].set_is_right_ref(true);
-				cell_[cur_ref].right_.ref_ = ref;
+				cur_cell.set_is_right_ref(true);
+				cur_cell.right_.ref_ = ref;
 				cur_bin.to_right();
 			}
 
@@ -2088,22 +2091,23 @@ namespace xcore
 			do
 			{
 				const ref_t ref = destination._alloc_cell();
+				cell_t& ref_cell = destination.cell_[cur_ref];
+				ref_cell.set_is_left_ref(false);
+				ref_cell.set_is_right_ref(false);
+				ref_cell.left_.bitmap_ = bm;
+				ref_cell.right_.bitmap_ = bm;
 
-				destination.cell_[ref].set_is_left_ref(false);
-				destination.cell_[ref].set_is_right_ref(false);
-				destination.cell_[ref].left_.bitmap_ = bm;
-				destination.cell_[ref].right_.bitmap_ = bm;
-
+				cell_t& cur_cell = destination.cell_[cur_ref];
 				if (sbin < cur_bin)
 				{
-					destination.cell_[cur_ref].set_is_left_ref(true);
-					destination.cell_[cur_ref].left_.ref_ = ref;
+					cur_cell.set_is_left_ref(true);
+					cur_cell.left_.ref_ = ref;
 					cur_bin.to_left();
 				}
 				else 
 				{
-					destination.cell_[cur_ref].set_is_right_ref(true);
-					destination.cell_[cur_ref].right_.ref_ = ref;
+					cur_cell.set_is_right_ref(true);
+					cur_cell.right_.ref_ = ref;
 					cur_bin.to_right();
 				}
 
@@ -2180,13 +2184,14 @@ namespace xcore
 		}
 
 		/* Release the destination subtree */
-		if (destination.cell_[dref].is_left_ref())
+		cell_t& dref_cell = destination.cell_[dref];
+		if (dref_cell.is_left_ref())
 		{
-			destination.free_cell(destination.cell_[dref].left_.ref_);
+			destination.free_cell(dref_cell.left_.ref_);
 		}
-		if (destination.cell_[dref].is_right_ref()) 
+		if (dref_cell.is_right_ref()) 
 		{
-			destination.free_cell(destination.cell_[dref].right_.ref_);
+			destination.free_cell(dref_cell.right_.ref_);
 		}
 
 		/* Make cloning */
