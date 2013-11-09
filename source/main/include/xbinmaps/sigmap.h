@@ -64,7 +64,7 @@ namespace xcore
 	class xsigmap
 	{
 	public:
-		inline			xsigmap(sigv::iallocator* _allocator, sigv::sigcomb_f _sigcombiner);
+						xsigmap(sigv::iallocator* _allocator, sigv::sigcomb_f _sigcombiner);
 						~xsigmap();
 
 		void			open(sigv::signature_t const& _rootsig, u32 _max_bins, bool _fold=true);
@@ -107,6 +107,7 @@ namespace xcore
 		bin_t				rootBin;
 		sigv::signature_t	rootSig;
 		sigv::node_t*		rootNode;
+		bool				is_open;
 		bool				fold;
 		bool				verified;
 

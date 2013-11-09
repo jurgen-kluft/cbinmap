@@ -124,6 +124,9 @@ namespace xcore
 		: allocator(_allocator)
 		, combiner(_sig_combiner)
 		, rootNode(0)
+		, is_open(false)
+		, fold(false)
+		, verified(false)
 	{
 	}
 
@@ -136,6 +139,7 @@ namespace xcore
 	{
 		close();
 
+		is_open = true;
 		fold = _fold;
 		verified = false;
 		rootBin = bin_t(xcore::x_intu::ilog2(_max_bins), 0);
@@ -147,12 +151,22 @@ namespace xcore
 		workSig = allocator->sig_allocate();
 
 		sDuplicateHash(allocator, _rootsig, rootSig);
-		sAllocNode(allocator, (xnode_t*)rootNode);
+		sAllocNode(allocator, rootNode);
 	}
 
 	void			xsigmap::close()
 	{
 		// Traverse the tree and deallocate nodes, leafs and hashes
+		if (is_open)
+		{
+			// @TODO: Deallocate all nodes!
+			allocator->node_deallocate(rootNode);
+
+			allocator->sig_deallocate(rootSig);
+			allocator->sig_deallocate(workSig);
+
+			is_open = false;
+		}
 	}
 
 	bool			xsigmap::verify()
@@ -172,13 +186,20 @@ namespace xcore
 		u32 stack_depth = max_stack_depth;
 		trace stack[max_stack_depth];
 
-		xnode_t* iter = rootNode;
-		traverse(iter, rootBin, _bin, stack, stack_depth);
+		xnode_t* _bin_node = rootNode;
+		u32 r = traverse(_bin_node, rootBin, _bin, stack, stack_depth);
 		
-		// content signatures are always layer 0 signatures
-		// here we also know that there are actually 3 layers below
-		// layer 0 since we pack 8 signatures into the last leaf
-
+		if (r > 1)
+		{
+			xnode_t::echild const child = (_bin.is_left()) ? xnode_t::LEFT : xnode_t::RIGHT;
+			if (!_bin_node->has_child(child))
+			{
+				xsig_t sig;
+				sDuplicateHash(allocator, _sig, sig);
+				_bin_node->set_sig(child, sig.digest);
+				return 1;
+			}
+		}
 		return 0;
 	}
 
