@@ -148,7 +148,7 @@ UNITTEST_SUITE_BEGIN(binmap2)
 			filter.reset(bin_t(1,4));
 			filter.reset(bin_t(0,13));
 
-			char binstr[32];
+			//char binstr[32];
 
 			bin_t s = bin_t(3,1);
 			//fprintf(stderr,"Searching 0,12 from %s ", s.base_left().str(binstr ) );
@@ -172,7 +172,7 @@ UNITTEST_SUITE_BEGIN(binmap2)
 			filter.reset(bin_t(1,4));
 			//filter.reset(bin_t(0,13));
 
-			char binstr[32];
+			//char binstr[32];
 
 			bin_t s = bin_t(3,1);
 			//fprintf(stderr,"Searching 0,12x from %s ", s.base_left().str(binstr ) );
@@ -195,7 +195,6 @@ UNITTEST_SUITE_BEGIN(binmap2)
 
 			//fprintf(stderr,"test: width %d\n", filter.cells_number() );
 			//fprintf(stderr,"test: empty %llu\n", filter.find_empty().value() );
-
 
 			data.reset(bin_t(0,500));
 			CHECK_EQUAL_BIN_T(bin_t(0,500),binmap_t::find_complement(data, filter, bin_t(10,0), 0).base_left());
@@ -673,7 +672,7 @@ UNITTEST_SUITE_BEGIN(binmap2)
 			for(int i=0; i<1024; i+=2)
 				filter.set(bin_t(0,i));
 
-			char binstr[32];
+			//char binstr[32];
 
 			// Case 1
 			bin_t s(1,2);

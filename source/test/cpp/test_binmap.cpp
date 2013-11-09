@@ -141,6 +141,7 @@ UNITTEST_SUITE_BEGIN(binmap)
 		UNITTEST_TEST(Chess) 
 		{
 			binmap_t chess16(a);
+
 			for(int i=0; i<16; i++)
 			{
 				if (i&1) 

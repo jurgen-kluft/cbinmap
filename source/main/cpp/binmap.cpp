@@ -1832,7 +1832,7 @@ namespace xcore
 				}
 				if (cur_bin == pre_bin)
 				{
-					cell.left_.bitmap_ = (cell.left_.bitmap_ & ~bin_bitmap) | bitmap;
+					cell.left_.bitmap_ = (bm & ~bin_bitmap) | bitmap;
 					pack_cells(href - 1);
 					return;
 				}
@@ -1847,7 +1847,7 @@ namespace xcore
 				}
 				if (cur_bin == pre_bin)
 				{
-					cell.right_.bitmap_ = (cell.right_.bitmap_ & ~bin_bitmap) | bitmap;
+					cell.right_.bitmap_ = (bm & ~bin_bitmap) | bitmap;
 					pack_cells(href - 1);
 					return;
 				}
@@ -1885,14 +1885,13 @@ namespace xcore
 		ASSERT (cur_bin.layer_bits() > BITMAP_LAYER_BITS);
 
 		/* Complete setting */
+		cell_t& cur_cell = cell_[cur_ref];
 		if (bin < cur_bin) 
 		{
-			cell_t& cur_cell = cell_[cur_ref];
 			cur_cell.left_.bitmap_ = (cur_cell.left_.bitmap_ & ~bin_bitmap) | bitmap;
 		}
 		else 
 		{
-			cell_t& cur_cell = cell_[cur_ref];
 			cur_cell.right_.bitmap_ = (cur_cell.right_.bitmap_ & ~bin_bitmap) | bitmap;
 		}
 	}

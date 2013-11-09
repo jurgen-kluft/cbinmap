@@ -21,21 +21,14 @@ namespace xcore
 
 		s32 r = 0;
 
-	#ifdef _MSC_VER
-	#  pragma warning (push)
-	#  pragma warning (disable:4146)
-	#endif
-		register u64 tail;
+		u64 tail;
 		tail = v_ + 1;
-		tail = tail & (-tail);
-	#ifdef _MSC_VER
-	#  pragma warning (pop)
-	#endif
+		tail = tail & (0 - tail);
 
 		if (tail > 0x80000000U) 
 		{
 			r = 32;
-			tail >>= 16;    // FIXME: hide warning
+			tail >>= 16;
 			tail >>= 16;
 		}
 

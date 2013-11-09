@@ -14,6 +14,17 @@ UNITTEST_SUITE_BEGIN(bin)
 		UNITTEST_TEST(_search)
 		{
 			bin_t b;
+			CHECK_TRUE(b.is_none());
+
+			bin_t v1(0x3f);
+			int v1l = v1.layer();
+			int v1o = (int)v1.layer_offset();
+
+			u32 a = 1;
+			a = 0 - a;
+
+			bin_t v2(5, 0);
+			CHECK_EQUAL(0x1F, v2.value());
 		}
 
 		UNITTEST_TEST(InitGet) 
