@@ -336,8 +336,7 @@ namespace xcore
 	{
 		const cell_t& cell = cell_[root_ref_];
 
-		return !cell.is_left_ref() && !cell.is_right_ref() &&
-			cell.left_.bitmap_ == BITMAP_EMPTY && cell.right_.bitmap_ == BITMAP_EMPTY;
+		return !cell.is_left_ref() && !cell.is_right_ref() && cell.left_.bitmap_ == BITMAP_EMPTY && cell.right_.bitmap_ == BITMAP_EMPTY;
 	}
 
 
@@ -348,8 +347,7 @@ namespace xcore
 	{
 		const cell_t& cell = cell_[root_ref_];
 
-		return root_bin_.is_all() && !cell.is_left_ref() && !cell.is_right_ref() &&
-			cell.left_.bitmap_ == BITMAP_FILLED && cell.right_.bitmap_ == BITMAP_FILLED;
+		return root_bin_.is_all() && !cell.is_left_ref() && !cell.is_right_ref() && cell.left_.bitmap_ == BITMAP_FILLED && cell.right_.bitmap_ == BITMAP_FILLED;
 	}
 
 
@@ -385,8 +383,7 @@ namespace xcore
 			{
 				return cell.right_.bitmap_ == BITMAP_EMPTY;
 			}
-			return !cell.is_left_ref() && !cell.is_right_ref() &&
-				cell.left_.bitmap_ == BITMAP_EMPTY && cell.right_.bitmap_ == BITMAP_EMPTY;
+			return !cell.is_left_ref() && !cell.is_right_ref() && cell.left_.bitmap_ == BITMAP_EMPTY && cell.right_.bitmap_ == BITMAP_EMPTY;
 		}
 
 		/* Process low-layers case */
@@ -431,8 +428,7 @@ namespace xcore
 			{
 				return cell.right_.bitmap_ == BITMAP_FILLED;
 			}
-			return !cell.is_left_ref() && !cell.is_right_ref() &&
-				cell.left_.bitmap_ == BITMAP_FILLED && cell.right_.bitmap_ == BITMAP_FILLED;
+			return !cell.is_left_ref() && !cell.is_right_ref() && cell.left_.bitmap_ == BITMAP_FILLED && cell.right_.bitmap_ == BITMAP_FILLED;
 		}
 
 		/* Process low-layers case */
@@ -477,7 +473,8 @@ namespace xcore
 
 		if (bin.layer_bits() > BITMAP_LAYER_BITS)
 		{
-			if (bin < cur_bin) {
+			if (bin < cur_bin) 
+			{
 				if (cell.left_.bitmap_ == BITMAP_EMPTY || cell.left_.bitmap_ == BITMAP_FILLED)
 				{
 					return cur_bin.left();
@@ -559,7 +556,8 @@ namespace xcore
 
 			return cur_bin;
 
-		} else if ((bm1 & bm2) == bm2)
+		} 
+		else if ((bm1 & bm2) == bm2)
 		{
 			do
 			{
@@ -635,23 +633,26 @@ namespace xcore
 				{
 					cur_ref = cell_[cur_ref].left_.ref_;
 					cur_bin.to_left();
-				} else if (cell_[cur_ref].left_.bitmap_ != BITMAP_FILLED)
+				} 
+				else if (cell_[cur_ref].left_.bitmap_ != BITMAP_FILLED)
 				{
 					bitmap = cell_[cur_ref].left_.bitmap_;
 					cur_bin.to_left();
 					break;
-				} else if (cell_[cur_ref].is_right_ref())
+				}
+				else if (cell_[cur_ref].is_right_ref())
 				{
 					cur_ref = cell_[cur_ref].right_.ref_;
 					cur_bin.to_right();
-				} else {
+				}
+				else
+				{
 					ASSERT (cell_[cur_ref].right_.bitmap_ != BITMAP_FILLED);
 					bitmap = cell_[cur_ref].right_.bitmap_;
 					cur_bin.to_right();
 					break;
 				}
 			}
-
 		} while (false);
 
 		/* Getting result */
@@ -756,6 +757,7 @@ namespace xcore
 
 		if (is_empty(cur_bin))
 			return cur_bin;
+
 		do
 		{
 			// Move up till we find ancestor that is not filled.

@@ -54,8 +54,8 @@ namespace xcore
 
 		bool			operator == (const bin_t& bin) const;
 		bool			operator != (const bin_t& bin) const;
-		bool			operator < (const bin_t& bin) const;
-		bool			operator > (const bin_t& bin) const;
+		bool			operator  < (const bin_t& bin) const;
+		bool			operator  > (const bin_t& bin) const;
 		bool			operator <= (const bin_t& bin) const;
 		bool			operator >= (const bin_t& bin) const;
 
