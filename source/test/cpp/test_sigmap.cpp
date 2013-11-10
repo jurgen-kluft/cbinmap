@@ -1,6 +1,7 @@
 #include "xbase\x_allocator.h"
 #include "xbase\x_debug.h"
 #include "xbase\x_memory_std.h"
+#include "xbase\x_integer.h"
 #include "xbinmaps\sigmap.h"
 #include "xbinmaps\blake_256.h"
 #include "xunittest\xunittest.h"
@@ -130,12 +131,18 @@ UNITTEST_SUITE_BEGIN(sigmap)
 			xsigmap sm(&a, sSigCombiner);
 
 			sigv::signature_t rootSignature = a.sig_allocate();
-			sm.open(rootSignature, 512, true);
+			sigv::signature_t lhs(&digests[0], rootSignature.length);
+			sigv::signature_t rhs(&digests[1], rootSignature.length);
+			sSigCombiner(lhs, rhs, &rootSignature);
+			sm.open(rootSignature, 2, true);
 
-			// @TODO: submit a signature
-			sigv::signature_t signature1(&digests[0], 32);
-			sm.submit(bin_t(0, 0), signature1);
-			sm.submit(bin_t(0, 1), signature1);
+			// submit two signatures, they will be merged
+			sigv::signature_t signature1(&digests[0], rootSignature.length);
+			CHECK_EQUAL(0, sm.submit(bin_t(0, 0), signature1));
+			sigv::signature_t signature2(&digests[1], rootSignature.length);
+			CHECK_EQUAL(0, sm.submit(bin_t(0, 1), signature2));
+
+			CHECK_TRUE(sm.verify());
 
 			sm.close();
 			a.sig_deallocate(rootSignature);
@@ -148,27 +155,34 @@ UNITTEST_SUITE_BEGIN(sigmap)
 
 			sigv::signature_t rootSignature = a.sig_allocate();
 
+			const s32 length = 512;
 			// manually compute the root signature according to the merkle signature scheme
-			xbyte	digests_data[512][32];
-			sigv::signature_t signatures[512];
-			for (s32 i=0; i<512; ++i)
+			xbyte	digests_data[length][32];
+			sigv::signature_t signatures[length];
+			for (s32 i=0; i<length; ++i)
 			{
 				signatures[i].digest = digests_data[i];
-				signatures[i].length = 32;
-				x_memcopy(signatures[i].digest, &digests[i], 32);
+				signatures[i].length = rootSignature.length;
+				x_memcopy(signatures[i].digest, &digests[i], rootSignature.length);
 			}
-			for (s32 i=0; i<512; i+=2)
+			for (s32 w=length; w>1; w=w/2)
 			{
-				sSigCombiner(signatures[i], signatures[i+1], &signatures[i/2]);
+				for (s32 i=0; i<w; i+=2)
+				{
+					sSigCombiner(signatures[i], signatures[i+1], &signatures[i/2]);
+				}
+			}
+			// The signature at index 0 is the root signature
+			x_memcpy(rootSignature.digest, signatures[0].digest, rootSignature.length);
+			sm.open(rootSignature, length, true);
+
+			for (s32 i=0; i<length; ++i)
+			{
+				sigv::signature_t signature1(&digests[i], rootSignature.length);
+				CHECK_EQUAL(0, sm.submit(bin_t(0, i), signature1));
 			}
 
-			sm.open(rootSignature, 512, true);
-
-			for (s32 i=0; i<512; ++i)
-			{
-				sigv::signature_t signature1(&digests[i], 32);
-				sm.submit(bin_t(0, i), signature1);
-			}
+			CHECK_TRUE(sm.verify());
 
 			sm.close();
 			a.sig_deallocate(rootSignature);
@@ -184,7 +198,7 @@ UNITTEST_SUITE_BEGIN(sigmap)
 
 			for (s32 i=0; i<512; ++i)
 			{
-				sigv::signature_t signature1(&digests[i], 32);
+				sigv::signature_t signature1(&digests[i], rootSignature.length);
 				sm.submit(bin_t(0, i), signature1);
 			}
 

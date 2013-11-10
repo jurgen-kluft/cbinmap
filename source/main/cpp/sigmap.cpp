@@ -148,7 +148,7 @@ namespace xcore
 		do_fold = _fold;
 		is_verified = false;
 		is_valid = false;
-		u32 max_bins2 = xcore::x_intu::ceilPower2(_max_bins) - 1;
+		u32 max_bins2 = xcore::x_intu::ceilPower2(_max_bins);
 		u32 layer = xcore::x_intu::ilog2(max_bins2);
 		rootBin = bin_t(layer, 0);
 
@@ -227,7 +227,27 @@ namespace xcore
 		}
 	}
 
-	bool			xsigmap::valid()
+	bool			xsigmap::verify()
+	{
+		if (is_open && !is_verified)
+		{
+			if (rootNode->has_sig(xnode_t::LEFT) && rootNode->has_sig(xnode_t::RIGHT))
+			{
+				is_verified = true;
+				xsig_t lhs(rootNode->get_sig(xnode_t::LEFT), rootSig.length);
+				xsig_t rhs(rootNode->get_sig(xnode_t::RIGHT), rootSig.length);
+				combiner(lhs, rhs, &workSig);
+				statistics.numCombs++;
+
+				is_valid = rootSig == workSig;
+
+				close();
+			}
+		}
+		return is_valid;
+	}
+
+	bool			xsigmap::valid() const
 	{
 		return is_valid;
 	}
@@ -245,7 +265,7 @@ namespace xcore
 		xnode_t* stack[max_stack_depth];
 
 		u32 r = traverse(rootBin, rootNode, _bin, stack, stack_depth, ETRAVERSE_EXPAND);
-		if (r > 1)
+		if (r > 0)
 		{
 			ASSERT(stack_depth < max_stack_depth);
 			xnode_t* node = stack[stack_depth++];
@@ -261,7 +281,7 @@ namespace xcore
 					// - combine the 2 signatures
 					// - determine if we are the left or right child of our parent
 					// - move up to our parent and set the signature on the apropriate child
-					do
+					while (_bin.parent() != rootBin)
 					{
 						// See if this node has 2 signatures, if so combine them, remove the node and
 						// set the combined signature on the parent
@@ -289,32 +309,12 @@ namespace xcore
 						parent->set_sig(c, lhs.digest);
 
 						node = parent;
-					} while (_bin.parent() != rootBin);
+					};
 				}
-				return 1;
+				return 0;
 			}
 		}
-		else if (r == 0)
-		{
-			if (!is_verified)
-			{
-				if (rootNode->has_sig(xnode_t::LEFT) && rootNode->has_sig(xnode_t::RIGHT))
-				{
-					is_verified = true;
-					xsig_t lhs(rootNode->get_sig(xnode_t::LEFT), rootSig.length);
-					xsig_t rhs(rootNode->get_sig(xnode_t::RIGHT), rootSig.length);
-					combiner(lhs, rhs, &workSig);
-					statistics.numCombs++;
-
-					is_valid = rootSig == workSig;
-
-					allocator->sig_deallocate(lhs);
-					allocator->sig_deallocate(rhs);
-					statistics.numSigs -= 2;
-				}
-			}
-		}
-		return 0;
+		return -1;
 	}
 
 	s32				xsigmap::find_unsigned(bin_t& _bin) const
@@ -332,10 +332,10 @@ namespace xcore
 
 	u32				xsigmap::traverse(bin_t _node_bin, xnode_t* _node, bin_t _tofind, xnode_t** _stack, u32& _stack_depth, emode _traverse_mode)
 	{
+		s32 const depth = _stack_depth;
+
 		ASSERT(_stack_depth > 0);
 		_stack[--_stack_depth] = (_node);
-
-		s32 const depth = _stack_depth;
 		while (_node_bin != _tofind)
 		{
 			xnode_t::echild _echild = xnode_t::LEFT;

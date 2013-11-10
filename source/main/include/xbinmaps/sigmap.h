@@ -71,7 +71,8 @@ namespace xcore
 		void			open(sigv::signature_t const& _rootsig, u32 _max_bins, bool _fold=true);
 		void			close();
 
-		bool			valid();
+		bool			verify();
+		bool			valid() const;
 		s32				failed() const;												// return: number of trusted sub-trees signatures that failed
 
 		s32				submit(bin_t _bin, sigv::signature_t const& _signature);	// return: 1=added, -1 if this was the last signature of a trusted sub-tree that failed to result in the trusted signature
