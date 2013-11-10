@@ -17,6 +17,7 @@ namespace xcore
 		struct signature_t
 		{
 			inline			signature_t() : digest(0), length(0) {}
+			inline			signature_t(xbyte* d, u32 l) : digest(d), length(l) {}
 			xbyte*			digest;
 			u32				length;
 		};
@@ -70,7 +71,7 @@ namespace xcore
 		void			open(sigv::signature_t const& _rootsig, u32 _max_bins, bool _fold=true);
 		void			close();
 
-		bool			verify();
+		bool			valid();
 		s32				failed() const;												// return: number of trusted sub-trees signatures that failed
 
 		s32				submit(bin_t _bin, sigv::signature_t const& _signature);	// return: 1=added, -1 if this was the last signature of a trusted sub-tree that failed to result in the trusted signature
@@ -83,13 +84,8 @@ namespace xcore
 		sigv::iallocator*	allocator;
 		sigv::sigcomb_f		combiner;
 
-		struct trace
-		{
-			inline			trace() : node_ptr(0) {}
-			inline			trace(sigv::node_t* ptr) : node_ptr(ptr) {}
-			sigv::node_t*	node_ptr;
-		};
-		u32				traverse(sigv::node_t*& _node_ptr, bin_t _node_bin, bin_t _tofind, trace* _stack, u32& _stack_depth);
+		enum emode { ETRAVERSE_NORMAL, ETRAVERSE_EXPAND };
+		u32				traverse(bin_t _node_bin, sigv::node_t* _node_ptr, bin_t _tofind, sigv::node_t** _stack, u32& _stack_depth, emode _traverse_mode=ETRAVERSE_NORMAL);
 
 		struct stats
 		{
@@ -108,9 +104,9 @@ namespace xcore
 		sigv::signature_t	rootSig;
 		sigv::node_t*		rootNode;
 		bool				is_open;
-		bool				fold;
-		bool				verified;
-
+		bool				do_fold;
+		bool				is_verified;
+		bool				is_valid;
 	};
 
 
