@@ -32,12 +32,12 @@ public:
 		return "indexed allocator for binmap_t::cell_t";
 	}
 
-	virtual void*			allocate(u32 size, u32 align)
+	virtual void*			allocate(xsize_t size, u32 align)
 	{
 		return 0;
 	}
 
-	virtual void*			reallocate(void* p, u32 size, u32 align)
+	virtual void*			reallocate(void* p, xsize_t size, u32 align)
 	{
 		return 0;
 	}
@@ -59,7 +59,7 @@ public:
 
 	virtual u32				to_idx(void const* p) const
 	{
-		u32 idx = ((binmap_t::cell_t*)p - cell_array) / sizeof(binmap_t::cell_t);
+		u32 idx = (u32)(((binmap_t::cell_t*)p - cell_array) / sizeof(binmap_t::cell_t));
 		return idx;
 	}
 

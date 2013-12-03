@@ -16,48 +16,6 @@ namespace xcore
 	typedef		u32						iptr;
 #endif
 
-	//
-	// Verify if the signature branch results in the root signature.
-	//
-	// The signature branch is saved by writing first the mirror child 
-	// of the node and then the mirror children of the parents when 
-	// navigating up.
-	//
-	bool xsigmap::submit_branch(bin_t _bin, xsig_t* const* _branch_signatures)
-	{
-		s32 i = 0;
-
-		// First step: Determine if this branch resolves to the root signature
-		xsig_t const* lhs = _branch_signatures[i++];
-		xsig_t const* rhs = _branch_signatures[i++];
-		ASSERT(rootSig.length == lhs->length);
-		ASSERT(rootSig.length == rhs->length);
-
-		while (_bin != rootBin)
-		{
-			if (_bin.is_left())
-				combiner(*rhs, *lhs, &workSig);
-			else
-				combiner(*lhs, *rhs, &workSig);
-
-			lhs = _branch_signatures[i++];
-			ASSERT(rootSig.length == lhs->length);
-			rhs = &workSig;
-			_bin.to_parent();
-		}
-
-		for (u32 i=0; i<rootSig.length; ++i)
-		{
-			if (rootSig.digest[i] != workSig.digest[i])
-				return false;
-		}
-
-		// Ok, the branch is validated, now insert it into our tree
-		// @TODO
-
-		return true;
-	}
-
 	namespace sigv
 	{
 		// sizeof(node_t) == 8 | 16
@@ -157,13 +115,13 @@ namespace xcore
 
 		allocator->initialize(sizeof(xnode_t), _rootsig.length);
 		workSig = allocator->sig_allocate();
-		statistics.numSigs++;
+		statistics.incSig();
 
 		rootSig = dup(allocator, _rootsig);
-		statistics.numSigs++;
+		statistics.incSig();
 
 		allocate(allocator, rootNode);
-		statistics.numNodes++;
+		statistics.incNode();
 	}
 
 	void			xsigmap::close()
@@ -208,19 +166,20 @@ namespace xcore
 					{
 						xsig_t s(node->get_sig(c), rootSig.length);
 						allocator->sig_deallocate(s);
-						--statistics.numSigs;
+						statistics.decSig();
 					}
 				}
 
 				// remove node
 				allocator->node_deallocate(node);
-				--statistics.numNodes;
+				statistics.decNode();
 			}
 
 			rootNode = NULL;
 
-			statistics.numSigs -= 2;
+			statistics.decSig();
 			allocator->sig_deallocate(rootSig);
+			statistics.decSig();
 			allocator->sig_deallocate(workSig);
 
 			is_open = false;
@@ -237,7 +196,7 @@ namespace xcore
 				xsig_t lhs(rootNode->get_sig(xnode_t::LEFT), rootSig.length);
 				xsig_t rhs(rootNode->get_sig(xnode_t::RIGHT), rootSig.length);
 				combiner(lhs, rhs, &workSig);
-				statistics.numCombs++;
+				statistics.incCombs();
 
 				is_valid = rootSig == workSig;
 
@@ -273,7 +232,7 @@ namespace xcore
 			if (!node->has_sig(echild))
 			{
 				xsig_t child_sig = dup(allocator, _sig);
-				statistics.numSigs++;
+				statistics.incSig();
 				node->set_sig(echild, child_sig.digest);
 				{
 					// for every node:
@@ -291,13 +250,13 @@ namespace xcore
 						xsig_t lhs(node->get_sig(xnode_t::LEFT), rootSig.length);
 						xsig_t rhs(node->get_sig(xnode_t::RIGHT), rootSig.length);
 						combiner(lhs, rhs, &lhs);
-						statistics.numCombs++;
+						statistics.incCombs();
 
 						// remove the node and one of the signatures, keep the other one for the parent
-						--statistics.numNodes;
-						--statistics.numSigs;
 						allocator->node_deallocate(node);
+						statistics.decNode();
 						allocator->sig_deallocate(rhs);
+						statistics.decSig();
 
 						ASSERT(stack_depth < max_stack_depth);
 						xnode_t* parent = stack[stack_depth++];
@@ -317,17 +276,48 @@ namespace xcore
 		return -1;
 	}
 
-	s32				xsigmap::find_unsigned(bin_t& _bin) const
+	//
+	// Verify if the signature branch results in the root signature.
+	//
+	// The signature branch is saved by writing first the mirror child 
+	// of the node and then the mirror children of the parents when 
+	// navigating up.
+	//
+	bool xsigmap::submit_branch(bin_t _bin, xsig_t* const* _branch_signatures)
 	{
+		s32 i = 0;
 
-		return 0;
+		// First step: Determine if this branch resolves to the root signature
+		xsig_t const* lhs = _branch_signatures[i++];
+		xsig_t const* rhs = _branch_signatures[i++];
+		ASSERT(rootSig.length == lhs->length);
+		ASSERT(rootSig.length == rhs->length);
+
+		while (_bin != rootBin)
+		{
+			if (_bin.is_left())
+				combiner(*rhs, *lhs, &workSig);
+			else
+				combiner(*lhs, *rhs, &workSig);
+
+			lhs = _branch_signatures[i++];
+			ASSERT(rootSig.length == lhs->length);
+			rhs = &workSig;
+			_bin.to_parent();
+		}
+
+		for (u32 i=0; i<rootSig.length; ++i)
+		{
+			if (rootSig.digest[i] != workSig.digest[i])
+				return false;
+		}
+
+		// Ok, the branch is validated, now insert it into our tree
+		// @TODO
+
+		return true;
 	}
 
-	s32				xsigmap::find_unsigned(bin_t* _bins, u32 _count) const
-	{
-
-		return 0;
-	}
 
 
 	u32				xsigmap::traverse(bin_t _node_bin, xnode_t* _node, bin_t _tofind, xnode_t** _stack, u32& _stack_depth, emode _traverse_mode)
@@ -367,7 +357,7 @@ namespace xcore
 				if (_traverse_mode == ETRAVERSE_EXPAND)
 				{
 					xnode_t* _node_child_ptr = allocator->node_allocate();
-					statistics.numNodes++;
+					statistics.incNode();
 					_node_child_ptr->clear();
 					_node->set_node(_echild, _node_child_ptr);
 					_node = _node_child_ptr;

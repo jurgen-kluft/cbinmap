@@ -51,11 +51,10 @@ namespace xcore
 	 *				@_allocator allocator for allocating nodes and signatures
 	 *
 	 * @behavior	Submitting a signature is going to allocate nodes, leafs and signatures and if submitted
-	 *              in the worst case random order (010101....010101) then this data structure will
-	 *              use the most amount of memory.
-	 *				So the aim is to submit signatures in a continues order (increasing or decreasing bin).
-	 *              The signature map will collapse sub-trees when it can combine the signature. The user
-	 *              can submit a trusted signature into the map with @submit_sig().
+	 *              in the worst case order (010101....010101) then this data structure will use the most
+	 *              amount of memory.
+	 *				So the best is to submit signatures in a continues order (increasing or decreasing bin).
+	 *              The signature map will collapse sub-trees when it can combine the signature. 
 	 * 
 	 * @example		You want to set a signature on it's bin :
 	 *              
@@ -73,13 +72,11 @@ namespace xcore
 
 		bool			verify();
 		bool			valid() const;
-		s32				failed() const;												// return: number of trusted sub-trees signatures that failed
 
 		s32				submit(bin_t _bin, sigv::signature_t const& _signature);	// return: 1=added, -1 if this was the last signature of a trusted sub-tree that failed to result in the trusted signature
 		bool			submit_branch(bin_t _bin, sigv::signature_t* const* _branch_signatures);
 
-		s32				find_unsigned(bin_t& _bin) const;							// return: 0=did not find bin, 1=item was found
-		s32				find_unsigned(bin_t* _bins, u32 _max) const;				// return: 0=did not find any bin, >0=number of items found
+		bool			read_branch(bin_t _bin, sigv::signature_t* _branch_signatures, u32 _max_branch_signatures);
 
 	private:
 		sigv::iallocator*	allocator;
@@ -90,7 +87,16 @@ namespace xcore
 
 		struct stats
 		{
-			inline				stats() : numNodes(0), maxNodes(0), numSigs(0), maxSigs(0), numCombs(0) {}
+			inline				stats()				{ reset(); }
+
+			void				reset()				{ numNodes=0; maxNodes=0; numSigs=0; maxSigs=0; numCombs=0; }
+			void				incNode()			{ ++numNodes; if (numNodes > maxNodes) maxNodes = numNodes; }
+			void				decNode()			{ --numNodes; }
+			void				incSig()			{ ++numSigs; if (numSigs > maxSigs) maxSigs = numSigs; }
+			void				decSig()			{ --numSigs; }
+			void				incCombs()			{ ++numCombs; }
+
+		private:
 			u32					numNodes;
 			u32					maxNodes;
 			u32					numSigs;
