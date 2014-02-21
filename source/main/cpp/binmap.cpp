@@ -1,24 +1,24 @@
 #include "xbase/x_debug.h"
 #include "xbase/x_memory_std.h"
 #include "xbase/x_string_std.h"
+
 #include "xbinmaps/binmap.h"
 
 namespace xcore
 {
-
 	inline size_t _max_(const size_t x, const size_t y)
 	{
 		return x < y ? y : x;
 	}
 
-	typedef binmap_t::ref_t ref_t;
+	typedef binmap_t::pcell_t pcell_t;
 	typedef binmap_t::bitmap_t bitmap_t;
 
 	/* Bitmap constants */
 	const bitmap_t BITMAP_EMPTY  = static_cast<bitmap_t>(0);
 	const bitmap_t BITMAP_FILLED = static_cast<bitmap_t>(-1);
 
-	const u64 BITMAP_LAYER_BITS = 2 * 8 * sizeof(bitmap_t) - 1;
+	const bin_t::uint_t BITMAP_LAYER_BITS = 2 * 8 * sizeof(bitmap_t) - 1;
 
 #ifdef _MSC_VER
 #  pragma warning (push)
@@ -65,13 +65,12 @@ namespace xcore
 #pragma warning (pop)
 #endif
 
-
 	/**
 	* Get the leftmost bin that corresponded to bitmap (the bin is filled in bitmap)
 	*/
-	u64 bitmap_to_bin(bitmap_t b)
+	bin_t::uint_t bitmap_to_bin(bitmap_t b)
 	{
-		static const unsigned char BITMAP_TO_BIN[] =
+		static const u8 BITMAP_TO_BIN[] =
 		{
 			0xff, 
 			    0, 2, 1, 4, 0, 2, 1, 6, 0, 2, 1, 5, 0, 2, 3,
@@ -92,29 +91,23 @@ namespace xcore
 			11, 0, 2, 1, 4, 0, 2, 1, 6, 0, 2, 1, 5, 0, 2, 7
 		};
 
-		ASSERT (sizeof(bitmap_t) <= 4);
+		ASSERT (sizeof(bitmap_t) == 4);
 		ASSERT (b != BITMAP_EMPTY);
 
-		unsigned char t;
+		u8 t;
 
 		t = BITMAP_TO_BIN[ b & 0xff ];
 		if (t < 16)
 		{
 			if (t != 7)
-			{
-				return static_cast<u64>(t);
-			}
+				return static_cast<bin_t::uint_t>(t);
 
 			b += 1;
 			b &= -b;
 			if (0 == b)
-			{
 				return BITMAP_LAYER_BITS / 2;
-			}
-			if (0 == (b & 0xffff)) 
-			{
+			if (0 == (b & 0xffff))
 				return 15;
-			}
 			return 7;
 		}
 
@@ -128,23 +121,17 @@ namespace xcore
 		/* Recursion */
 		// return 32 + bitmap_to_bin( b >> 8 );
 
-		ASSERT (sizeof(bitmap_t) == 4);
-
 		b >>= 8;
 		t = BITMAP_TO_BIN[ b & 0xff ];
 		if (t < 16)
 		{
 			if (t != 7)
-			{
-				return 32 + static_cast<u64>(t);
-			}
+				return 32 + static_cast<bin_t::uint_t>(t);
 
 			b += 1;
 			b &= -b;
 			if (0 == (b & 0xffff))
-			{
 				return 47;
-			}
 			return 39;
 		}
 
@@ -175,15 +162,14 @@ namespace xcore
 	/**
 	* Constructor
 	*/
-	binmap_t::binmap_t(x_iidx_allocator* _allocator)
-		: allocator(_allocator)
-		, cell_(_allocator)
+	binmap_t::binmap_t()
+		: cell_allocator(0)
 		, root_bin_(63)
 	{
 		ASSERT (sizeof(bitmap_t) <= 4);
 
-		allocated_cells_number_ = 1;
-		root_ref_ = alloc_cell();
+		allocated_cells_number_ = 0;
+		root_cell_ = NULL;
 	}
 
 
@@ -192,44 +178,51 @@ namespace xcore
 	*/
 	binmap_t::~binmap_t()
 	{
-		free_cell(root_ref_);
+		if (root_cell_ != NULL)
+		{
+			free_cell(root_cell_);
+			root_cell_ = NULL;
+		}
 	}
 
 	/**
 	* Allocates one cell (dirty allocation)
 	*/
-	ref_t binmap_t::_alloc_cell()
+	void binmap_t::init(u32 _max_bins, allocator* _cell_allocator)
 	{
-		void *p;
-		ref_t ref = allocator->iallocate(p);
-		ASSERT(p!=NULL);
-		++allocated_cells_number_;
-		return ref;
+		cell_allocator = _cell_allocator;
+		root_cell_ = alloc_cell();
 	}
-
 
 	/**
 	* Allocates one cell
 	*/
-	ref_t binmap_t::alloc_cell()
+	pcell_t binmap_t::alloc_cell()
 	{
-		void *p;
-		ref_t ref = allocator->iallocate(p);
+		++allocated_cells_number_;
+		void *p = cell_allocator->allocate(sizeof(cell_t), sizeof(X_PTR_SIZED_INT));
 		ASSERT(p!=NULL);
-		cell_t* cell = (cell_t*)p;
-		x_memset(cell, 0, sizeof(cell_t));
-		return ref;
+		pcell_t cell = (pcell_t)p;
+		cell->clear();
+		return cell;
 	}
 
 	/**
-	* Releases the cell
+	* Free the cell including all children
 	*/
-	void binmap_t::free_cell(ref_t ref)
+	void binmap_t::free_cell(pcell_t ref)
 	{
-		allocator->ideallocate(ref);
+		ASSERT(ref != NULL);
+
+		if (ref->is_left_ref())
+			free_cell(ref->left_.ref_);
+
+		if (ref->is_right_ref())
+			free_cell(ref->right_.ref_);
+
+		cell_allocator->deallocate(ref);
 		--allocated_cells_number_;
 	}
-
 
 	/**
 	* Extend root
@@ -238,26 +231,26 @@ namespace xcore
 	{
 		ASSERT (!root_bin_.is_all());
 
-		if (!cell_[root_ref_].is_left_ref() && !cell_[root_ref_].is_right_ref() && cell_[root_ref_].left_.bitmap_ == cell_[root_ref_].right_.bitmap_)
+		if (!root_cell_->is_left_ref() && !root_cell_->is_right_ref() && root_cell_->left_.bitmap_ == root_cell_->right_.bitmap_)
 		{
 			/* Setup the root cell */
-			cell_[root_ref_].right_.bitmap_ = BITMAP_EMPTY;
+			root_cell_->right_.bitmap_ = BITMAP_EMPTY;
 
 		} 
 		else 
 		{
 			/* Allocate new cell */
-			const ref_t ref = alloc_cell();
+			pcell_t ref = alloc_cell();
 
-			/* Move old root to the cell */
-			cell_[ref] = cell_[root_ref_];
+			/* Swap old root cell with the newly allocated cell */
+			*ref = *root_cell_;
 
 			/* Setup new root */
-			cell_[root_ref_].set_is_left_ref(true);
-			cell_[root_ref_].set_is_right_ref(false);
+			root_cell_->set_is_left_ref(true);
+			root_cell_->set_is_right_ref(false);
 
-			cell_[root_ref_].left_.ref_ = ref;
-			cell_[root_ref_].right_.bitmap_ = BITMAP_EMPTY;
+			root_cell_->left_.ref_ = ref;
+			root_cell_->right_.bitmap_ = BITMAP_EMPTY;
 		}
 
 		/* Reset bin */
@@ -265,41 +258,38 @@ namespace xcore
 		return true;
 	}
 
-
 	/**
 	* Pack a trace of cells
 	*/
-	void binmap_t::pack_cells(ref_t* href)
+	void binmap_t::pack_cells(pcell_t* href)
 	{
-		ref_t ref = *href--;
-		if (ref == root_ref_) 
+		pcell_t ref = *href--;
+		if (ref == root_cell_) 
 		{
 			return;
 		}
 
-		cell_t* ref_cell = &cell_[ref];
-		if (ref_cell->is_left_ref() || ref_cell->is_right_ref() || ref_cell->left_.bitmap_ != ref_cell->right_.bitmap_)
+		if (ref->is_left_ref() || ref->is_right_ref() || ref->left_.bitmap_ != ref->right_.bitmap_)
 		{
 			return;
 		}
 
-		const bitmap_t bitmap = ref_cell->left_.bitmap_;
+		const bitmap_t bitmap = ref->left_.bitmap_;
 
 		do 
 		{
 			ref = *href--;
-			ref_cell = &cell_[ref];
 
-			if (!ref_cell->is_left_ref())
+			if (!ref->is_left_ref())
 			{
-				if (ref_cell->left_.bitmap_ != bitmap)
+				if (ref->left_.bitmap_ != bitmap)
 				{
 					break;
 				}
 			}
-			else if (!ref_cell->is_right_ref()) 
+			else if (!ref->is_right_ref()) 
 			{
-				if (ref_cell->right_.bitmap_ != bitmap)
+				if (ref->right_.bitmap_ != bitmap)
 				{
 					break;
 				}
@@ -309,34 +299,33 @@ namespace xcore
 				break;
 			}
 
-		} while (ref != root_ref_);
+		} while (ref != root_cell_);
 
-		const ref_t par_ref = href[2];
+		pcell_t child = href[2];
 		
-		ref_cell = &cell_[ref];
-		if (ref_cell->is_left_ref() && ref_cell->left_.ref_ == par_ref)
+		if (ref->is_left_ref() && ref->left_.ref_ == child)
 		{
-			ref_cell->set_is_left_ref(false);
-			ref_cell->left_.bitmap_ = bitmap;
+			ref->set_is_left_ref(false);
+			ref->left_.bitmap_ = bitmap;
 		} 
 		else
 		{
-			ref_cell->set_is_right_ref(false);
-			ref_cell->right_.bitmap_ = bitmap;
+			ASSERT(ref->right_.ref_ == child);
+			ref->set_is_right_ref(false);
+			ref->right_.bitmap_ = bitmap;
 		}
 
-		free_cell(par_ref);
+		href[2] = NULL;
+		free_cell(child);
 	}
-
 
 	/**
 	* Whether binmap is empty
 	*/
 	bool binmap_t::is_empty() const
 	{
-		const cell_t& cell = cell_[root_ref_];
-
-		return !cell.is_left_ref() && !cell.is_right_ref() && cell.left_.bitmap_ == BITMAP_EMPTY && cell.right_.bitmap_ == BITMAP_EMPTY;
+		pcell_t cell = root_cell_;
+		return !cell->is_left_ref() && !cell->is_right_ref() && cell->left_.bitmap_ == BITMAP_EMPTY && cell->right_.bitmap_ == BITMAP_EMPTY;
 	}
 
 
@@ -345,9 +334,8 @@ namespace xcore
 	*/
 	bool binmap_t::is_filled() const
 	{
-		const cell_t& cell = cell_[root_ref_];
-
-		return root_bin_.is_all() && !cell.is_left_ref() && !cell.is_right_ref() && cell.left_.bitmap_ == BITMAP_FILLED && cell.right_.bitmap_ == BITMAP_FILLED;
+		cell_t* cell = root_cell_;
+		return root_bin_.is_all() && !cell->is_left_ref() && !cell->is_right_ref() && cell->left_.bitmap_ == BITMAP_FILLED && cell->right_.bitmap_ == BITMAP_FILLED;
 	}
 
 
@@ -363,7 +351,7 @@ namespace xcore
 		}
 
 		/* Trace the bin */
-		ref_t cur_ref;
+		pcell_t cur_ref;
 		bin_t cur_bin;
 
 		trace(&cur_ref, &cur_bin, bin);
@@ -371,25 +359,25 @@ namespace xcore
 		ASSERT (cur_bin.layer_bits() > BITMAP_LAYER_BITS);
 
 		/* Process common case */
-		const cell_t& cell = cell_[cur_ref];
+		cell_t* cell = cur_ref;
 
 		if (bin.layer_bits() > BITMAP_LAYER_BITS) 
 		{
 			if (bin < cur_bin) 
 			{
-				return cell.left_.bitmap_ == BITMAP_EMPTY;
+				return cell->left_.bitmap_ == BITMAP_EMPTY;
 			}
 			if (cur_bin < bin)
 			{
-				return cell.right_.bitmap_ == BITMAP_EMPTY;
+				return cell->right_.bitmap_ == BITMAP_EMPTY;
 			}
-			return !cell.is_left_ref() && !cell.is_right_ref() && cell.left_.bitmap_ == BITMAP_EMPTY && cell.right_.bitmap_ == BITMAP_EMPTY;
+			return !cell->is_left_ref() && !cell->is_right_ref() && cell->left_.bitmap_ == BITMAP_EMPTY && cell->right_.bitmap_ == BITMAP_EMPTY;
 		}
 
 		/* Process low-layers case */
 		ASSERT (bin != cur_bin);
 
-		const bitmap_t bm1 = (bin < cur_bin) ? cell.left_.bitmap_ : cell.right_.bitmap_;
+		const bitmap_t bm1 = (bin < cur_bin) ? cell->left_.bitmap_ : cell->right_.bitmap_;
 		const bitmap_t bm2 = BITMAP[ BITMAP_LAYER_BITS & bin.value() ];
 
 		return (bm1 & bm2) == BITMAP_EMPTY;
@@ -408,7 +396,7 @@ namespace xcore
 		}
 
 		/* Trace the bin */
-		ref_t cur_ref;
+		pcell_t cur_ref;
 		bin_t cur_bin;
 
 		trace(&cur_ref, &cur_bin, bin);
@@ -416,25 +404,25 @@ namespace xcore
 		ASSERT (cur_bin.layer_bits() > BITMAP_LAYER_BITS);
 
 		/* Process common case */
-		const cell_t& cell = cell_[cur_ref];
+		cell_t* cell = cur_ref;
 
 		if (bin.layer_bits() > BITMAP_LAYER_BITS)
 		{
 			if (bin < cur_bin) 
 			{
-				return cell.left_.bitmap_ == BITMAP_FILLED;
+				return cell->left_.bitmap_ == BITMAP_FILLED;
 			}
 			if (cur_bin < bin) 
 			{
-				return cell.right_.bitmap_ == BITMAP_FILLED;
+				return cell->right_.bitmap_ == BITMAP_FILLED;
 			}
-			return !cell.is_left_ref() && !cell.is_right_ref() && cell.left_.bitmap_ == BITMAP_FILLED && cell.right_.bitmap_ == BITMAP_FILLED;
+			return !cell->is_left_ref() && !cell->is_right_ref() && cell->left_.bitmap_ == BITMAP_FILLED && cell->right_.bitmap_ == BITMAP_FILLED;
 		}
 
 		/* Process low-layers case */
 		ASSERT (bin != cur_bin);
 
-		const bitmap_t bm1 = (bin < cur_bin) ? cell.left_.bitmap_ : cell.right_.bitmap_;
+		const bitmap_t bm1 = (bin < cur_bin) ? cell->left_.bitmap_ : cell->right_.bitmap_;
 		const bitmap_t bm2 = BITMAP[ BITMAP_LAYER_BITS & bin.value() ];
 
 		return (bm1 & bm2) == bm2;
@@ -461,7 +449,7 @@ namespace xcore
 		}
 
 		/* Trace the bin */
-		ref_t cur_ref;
+		pcell_t cur_ref;
 		bin_t cur_bin;
 
 		trace(&cur_ref, &cur_bin, bin);
@@ -469,13 +457,13 @@ namespace xcore
 		ASSERT (cur_bin.layer_bits() > BITMAP_LAYER_BITS);
 
 		/* Process common case */
-		const cell_t& cell = cell_[cur_ref];
+		cell_t* cell = cur_ref;
 
 		if (bin.layer_bits() > BITMAP_LAYER_BITS)
 		{
 			if (bin < cur_bin) 
 			{
-				if (cell.left_.bitmap_ == BITMAP_EMPTY || cell.left_.bitmap_ == BITMAP_FILLED)
+				if (cell->left_.bitmap_ == BITMAP_EMPTY || cell->left_.bitmap_ == BITMAP_FILLED)
 				{
 					return cur_bin.left();
 				}
@@ -483,26 +471,26 @@ namespace xcore
 			}
 			if (cur_bin < bin) 
 			{
-				if (cell.right_.bitmap_ == BITMAP_EMPTY || cell.right_.bitmap_ == BITMAP_FILLED)
+				if (cell->right_.bitmap_ == BITMAP_EMPTY || cell->right_.bitmap_ == BITMAP_FILLED)
 				{
 					return cur_bin.right();
 				}
 				return bin_t::NONE;
 			}
-			if (cell.is_left_ref() || cell.is_right_ref())
+			if (cell->is_left_ref() || cell->is_right_ref())
 			{
 				return bin_t::NONE;
 			}
-			if (cell.left_.bitmap_ != cell.right_.bitmap_) 
+			if (cell->left_.bitmap_ != cell->right_.bitmap_) 
 			{
 				return bin_t::NONE;
 			}
 			ASSERT (cur_bin == root_bin_);
-			if (cell.left_.bitmap_ == BITMAP_EMPTY)
+			if (cell->left_.bitmap_ == BITMAP_EMPTY)
 			{
 				return bin_t::ALL;
 			}
-			if (cell.left_.bitmap_ == BITMAP_FILLED)
+			if (cell->left_.bitmap_ == BITMAP_FILLED)
 			{
 				return cur_bin;
 			}
@@ -515,12 +503,12 @@ namespace xcore
 		bitmap_t bm1;
 		if (bin < cur_bin) 
 		{
-			bm1 = cell.left_.bitmap_;
+			bm1 = cell->left_.bitmap_;
 			cur_bin.to_left();
 		}
 		else
 		{
-			bm1 = cell.right_.bitmap_;
+			bm1 = cell->right_.bitmap_;
 			cur_bin.to_right();
 		}
 
@@ -581,39 +569,39 @@ namespace xcore
 		/* Trace the bin */
 		bitmap_t bitmap = BITMAP_FILLED;
 
-		ref_t cur_ref;
+		pcell_t cur_ref;
 		bin_t cur_bin;
 
 		do
 		{
 			/* Processing the root */
-			if (cell_[root_ref_].is_left_ref())
+			if (root_cell_->is_left_ref())
 			{
-				cur_ref = cell_[root_ref_].left_.ref_;
+				cur_ref = root_cell_->left_.ref_;
 				cur_bin = root_bin_.left();
 			}
-			else if (cell_[root_ref_].left_.bitmap_ != BITMAP_FILLED)
+			else if (root_cell_->left_.bitmap_ != BITMAP_FILLED)
 			{
-				if (cell_[ root_ref_].left_.bitmap_ == BITMAP_EMPTY)
+				if ( root_cell_->left_.bitmap_ == BITMAP_EMPTY)
 				{
-					if (!cell_[ root_ref_].is_right_ref() && cell_[ root_ref_ ].right_.bitmap_ == BITMAP_EMPTY)
+					if (! root_cell_->is_right_ref() &&  root_cell_->right_.bitmap_ == BITMAP_EMPTY)
 					{
 						return bin_t::ALL;
 					}
 					return root_bin_.left();
 				}
-				bitmap = cell_[root_ref_].left_.bitmap_;
+				bitmap = root_cell_->left_.bitmap_;
 				cur_bin = root_bin_.left();
 				break;
 			} 
-			else if (cell_[root_ref_].is_right_ref()) 
+			else if (root_cell_->is_right_ref()) 
 			{
-				cur_ref = cell_[root_ref_].right_.ref_;
+				cur_ref = root_cell_->right_.ref_;
 				cur_bin = root_bin_.right();
 			}
 			else
 			{
-				if (cell_[root_ref_].right_.bitmap_ == BITMAP_FILLED)
+				if (root_cell_->right_.bitmap_ == BITMAP_FILLED)
 				{
 					if (root_bin_.is_all())
 					{
@@ -621,7 +609,7 @@ namespace xcore
 					}
 					return root_bin_.sibling();
 				}
-				bitmap = cell_[root_ref_].right_.bitmap_;
+				bitmap = root_cell_->right_.bitmap_;
 				cur_bin = root_bin_.right();
 				break;
 			}
@@ -629,26 +617,26 @@ namespace xcore
 			/* Processing middle layers */
 			for ( ;;)
 			{
-				if (cell_[cur_ref].is_left_ref())
+				if (cur_ref->is_left_ref())
 				{
-					cur_ref = cell_[cur_ref].left_.ref_;
+					cur_ref = cur_ref->left_.ref_;
 					cur_bin.to_left();
 				} 
-				else if (cell_[cur_ref].left_.bitmap_ != BITMAP_FILLED)
+				else if (cur_ref->left_.bitmap_ != BITMAP_FILLED)
 				{
-					bitmap = cell_[cur_ref].left_.bitmap_;
+					bitmap = cur_ref->left_.bitmap_;
 					cur_bin.to_left();
 					break;
 				}
-				else if (cell_[cur_ref].is_right_ref())
+				else if (cur_ref->is_right_ref())
 				{
-					cur_ref = cell_[cur_ref].right_.ref_;
+					cur_ref = cur_ref->right_.ref_;
 					cur_bin.to_right();
 				}
 				else
 				{
-					ASSERT (cell_[cur_ref].right_.bitmap_ != BITMAP_FILLED);
-					bitmap = cell_[cur_ref].right_.bitmap_;
+					ASSERT (cur_ref->right_.bitmap_ != BITMAP_FILLED);
+					bitmap = cur_ref->right_.bitmap_;
 					cur_bin.to_right();
 					break;
 				}
@@ -670,43 +658,43 @@ namespace xcore
 		/* Trace the bin */
 		bitmap_t bitmap = BITMAP_EMPTY;
 
-		ref_t cur_ref;
+		pcell_t cur_ref;
 		bin_t cur_bin;
 
 		do
 		{
 			/* Processing the root */
-			if (cell_[root_ref_].is_left_ref()) 
+			if (root_cell_->is_left_ref()) 
 			{
-				cur_ref = cell_[root_ref_].left_.ref_;
+				cur_ref = root_cell_->left_.ref_;
 				cur_bin = root_bin_.left();
 			}
-			else if (cell_[root_ref_].left_.bitmap_ != BITMAP_EMPTY)
+			else if (root_cell_->left_.bitmap_ != BITMAP_EMPTY)
 			{
-				if (cell_[ root_ref_].left_.bitmap_ == BITMAP_FILLED)
+				if ( root_cell_->left_.bitmap_ == BITMAP_FILLED)
 				{
-					if (!cell_[ root_ref_].is_right_ref() && cell_[ root_ref_ ].right_.bitmap_ == BITMAP_FILLED)
+					if (! root_cell_->is_right_ref() &&  root_cell_->right_.bitmap_ == BITMAP_FILLED)
 					{
 						return root_bin_;
 					}
 					return root_bin_.left();
 				}
-				bitmap = cell_[root_ref_].left_.bitmap_;
+				bitmap = root_cell_->left_.bitmap_;
 				cur_bin = root_bin_.left();
 				break;
 			}
-			else if (cell_[root_ref_].is_right_ref())
+			else if (root_cell_->is_right_ref())
 			{
-				cur_ref = cell_[root_ref_].right_.ref_;
+				cur_ref = root_cell_->right_.ref_;
 				cur_bin = root_bin_.right();
 			}
 			else
 			{
-				if (cell_[root_ref_].right_.bitmap_ == BITMAP_EMPTY)
+				if (root_cell_->right_.bitmap_ == BITMAP_EMPTY)
 				{
 					return bin_t::NONE;
 				}
-				bitmap = cell_[root_ref_].right_.bitmap_;
+				bitmap = root_cell_->right_.bitmap_;
 				cur_bin = root_bin_.right();
 				break;
 			}
@@ -714,26 +702,26 @@ namespace xcore
 			/* Processing middle layers */
 			for ( ;;)
 			{
-				if (cell_[cur_ref].is_left_ref()) 
+				if (cur_ref->is_left_ref()) 
 				{
-					cur_ref = cell_[cur_ref].left_.ref_;
+					cur_ref = cur_ref->left_.ref_;
 					cur_bin.to_left();
 				} 
-				else if (cell_[cur_ref].left_.bitmap_ != BITMAP_EMPTY)
+				else if (cur_ref->left_.bitmap_ != BITMAP_EMPTY)
 				{
-					bitmap = cell_[cur_ref].left_.bitmap_;
+					bitmap = cur_ref->left_.bitmap_;
 					cur_bin.to_left();
 					break;
 				} 
-				else if (cell_[cur_ref].is_right_ref())
+				else if (cur_ref->is_right_ref())
 				{
-					cur_ref = cell_[cur_ref].right_.ref_;
+					cur_ref = cur_ref->right_.ref_;
 					cur_bin.to_right();
 				}
 				else 
 				{
-					ASSERT (cell_[cur_ref].right_.bitmap_ != BITMAP_EMPTY);
-					bitmap = cell_[cur_ref].right_.bitmap_;
+					ASSERT (cur_ref->right_.bitmap_ != BITMAP_EMPTY);
+					bitmap = cur_ref->right_.bitmap_;
 					cur_bin.to_right();
 					break;
 				}
@@ -807,48 +795,48 @@ namespace xcore
 
 
 	#define SSTACK()                                    \
-		int _top_ = 0;                                  \
+		s32 _top_ = 0;                                  \
 		bin_t _bin_[64];                                \
-		ref_t _sref_[64];                               \
-		char _dir_[64];
+		pcell_t _sref_[64];                             \
+		s8 _dir_[64];
 
 	#define DSTACK()                                    \
-		int _top_ = 0;                                  \
+		s32 _top_ = 0;                                  \
 		bin_t _bin_[64];                                \
-		ref_t _dref_[64];                               \
-		char _dir_[64];
+		pcell_t _dref_[64];                             \
+		s8 _dir_[64];
 
 	#define SDSTACK()                                   \
-		int _top_ = 0;                                  \
+		s32 _top_ = 0;                                  \
 		bin_t _bin_[64];                                \
-		ref_t _sref_[64];                               \
-		ref_t _dref_[64];                               \
-		char _dir_[64];
+		pcell_t _sref_[64];                             \
+		pcell_t _dref_[64];                             \
+		s8 _dir_[64];
 
 
 	#define SPUSH(b, sr, twist)                         \
 		do {                                            \
-		_bin_[_top_] = b;                           \
-		_sref_[_top_] = sr;                         \
+		_bin_[_top_] = b;                               \
+		_sref_[_top_] = sr;                             \
 		_dir_[_top_] = (0 != (twist & (b.base_length() >> 1))); \
-		++_top_;                                    \
+		++_top_;                                        \
 		} while (false)
 
 	#define DPUSH(b, dr, twist)                         \
 		do {                                            \
-		_bin_[_top_] = b;                           \
-		_dref_[_top_] = dr;                         \
+		_bin_[_top_] = b;                               \
+		_dref_[_top_] = dr;                             \
 		_dir_[_top_] = (0 != (twist & (b.base_length() >> 1))); \
-		++_top_;                                    \
+		++_top_;                                        \
 		} while (false)
 
 	#define SDPUSH(b, sr, dr, twist)                    \
 		do {                                            \
-		_bin_[_top_] = b;                           \
-		_sref_[_top_] = sr;                         \
-		_dref_[_top_] = dr;                         \
+		_bin_[_top_] = b;                               \
+		_sref_[_top_] = sr;                             \
+		_dref_[_top_] = dr;                             \
 		_dir_[_top_] = (0 != (twist & (b.base_length() >> 1))); \
-		++_top_;                                    \
+		++_top_;                                        \
 		} while (false)
 
 
@@ -856,31 +844,31 @@ namespace xcore
 		ASSERT (_top_ < 65);                            \
 		--_top_;                                        \
 		const bin_t b = _bin_[_top_];                   \
-		const cell_t& sc = source.cell_[_sref_[_top_]]; \
+		cell_t* sc = _sref_[_top_];						\
 		const bool is_left = !(_dir_[_top_] & 0x01);    \
 		if (0 == (_dir_[_top_] & 0x02)) {               \
-		_dir_[_top_++] ^= 0x03;                     \
+		_dir_[_top_++] ^= 0x03;							\
 		}
 
 	#define DPOP()                                      \
 		ASSERT (_top_ < 65);                            \
 		--_top_;                                        \
 		const bin_t b = _bin_[_top_];                   \
-		const cell_t& dc = destination.cell_[_dref_[_top_]]; \
+		cell_t* dc = _dref_[_top_];						\
 		const bool is_left = !(_dir_[_top_] & 0x01);    \
 		if (0 == (_dir_[_top_] & 0x02)) {               \
-		_dir_[_top_++] ^= 0x03;                     \
+		_dir_[_top_++] ^= 0x03;							\
 		}
 
 	#define SDPOP()                                     \
 		ASSERT (_top_ < 65);                            \
 		--_top_;                                        \
 		const bin_t b = _bin_[_top_];                   \
-		const cell_t& sc = source.cell_[_sref_[_top_]]; \
-		const cell_t& dc = destination.cell_[_dref_[_top_]]; \
+		cell_t* sc = _sref_[_top_];                     \
+		cell_t* dc = _dref_[_top_];                     \
 		const bool is_left = !(_dir_[_top_] & 0x01);    \
 		if (0 == (_dir_[_top_] & 0x02)) {               \
-		_dir_[_top_++] ^= 0x03;                     \
+		    _dir_[_top_++] ^= 0x03;                     \
 		}
 
 
@@ -892,15 +880,15 @@ namespace xcore
 	* @param source
 	*             the source binmap
 	*/
-	bin_t binmap_t::find_complement(const binmap_t& destination, const binmap_t& source, const u64 twist)
+	bin_t binmap_t::find_complement(const binmap_t& destination, const binmap_t& source, const bin_t::uint_t twist)
 	{
 		return find_complement(destination, source, bin_t::ALL, twist);
 	}
 
 
-	bin_t binmap_t::find_complement(const binmap_t& destination, const binmap_t& source, bin_t range, const u64 twist)
+	bin_t binmap_t::find_complement(const binmap_t& destination, const binmap_t& source, bin_t range, const bin_t::uint_t twist)
 	{
-		ref_t sref = source.root_ref_;
+		pcell_t sref = source.root_cell_;
 		bitmap_t sbitmap = BITMAP_EMPTY;
 		bool is_sref = true;
 
@@ -924,11 +912,11 @@ namespace xcore
 
 				if (range < sbin) 
 				{
-					sbitmap = source.cell_[sref].left_.bitmap_;
+					sbitmap = sref->left_.bitmap_;
 				} 
 				else 
 				{
-					sbitmap = source.cell_[sref].right_.bitmap_;
+					sbitmap = sref->right_.bitmap_;
 				}
 
 				sbitmap &= BITMAP[ BITMAP_LAYER_BITS & range.value() ];
@@ -951,8 +939,8 @@ namespace xcore
 		{
 			if (is_sref)
 			{
-				const cell_t& cell = source.cell_[sref];
-				if (!cell.is_left_ref() && !cell.is_right_ref() && cell.left_.bitmap_ == BITMAP_FILLED && cell.right_.bitmap_ == BITMAP_FILLED) 
+				cell_t* cell = sref;
+				if (!cell->is_left_ref() && !cell->is_right_ref() && cell->left_.bitmap_ == BITMAP_FILLED && cell->right_.bitmap_ == BITMAP_FILLED) 
 				{
 					return range;
 				} 
@@ -969,7 +957,7 @@ namespace xcore
 
 		if (destination.root_bin_.contains(range)) 
 		{
-			ref_t dref;
+			pcell_t dref;
 			bin_t dbin;
 			destination.trace(&dref, &dbin, range);
 
@@ -991,11 +979,11 @@ namespace xcore
 
 				if (range < dbin)
 				{
-					dbitmap = destination.cell_[dref].left_.bitmap_;
+					dbitmap = dref->left_.bitmap_;
 				} 
 				else 
 				{
-					dbitmap = destination.cell_[dref].right_.bitmap_;
+					dbitmap = dref->right_.bitmap_;
 				}
 
 				if (dbitmap == BITMAP_FILLED)
@@ -1006,8 +994,8 @@ namespace xcore
 				{
 					if (dbitmap == BITMAP_EMPTY)
 					{
-						const cell_t& cell = source.cell_[sref];
-						if (!cell.is_left_ref() && !cell.is_right_ref() && cell.left_.bitmap_ == BITMAP_FILLED && cell.right_.bitmap_ == BITMAP_FILLED)
+						cell_t* cell = sref;
+						if (!cell->is_left_ref() && !cell->is_right_ref() && cell->left_.bitmap_ == BITMAP_FILLED && cell->right_.bitmap_ == BITMAP_FILLED)
 						{
 							return range;
 						}
@@ -1057,17 +1045,17 @@ namespace xcore
 					{
 						if (b.left() == destination.root_bin_) 
 						{
-							if (sc.is_left_ref())
+							if (sc->is_left_ref())
 							{
-								const bin_t res = binmap_t::_find_complement(destination.root_bin_, destination.root_ref_, destination, sc.left_.ref_, source, twist);
+								const bin_t res = binmap_t::_find_complement(destination.root_bin_, destination.root_cell_, destination, sc->left_.ref_, source, twist);
 								if (!res.is_none()) 
 								{
 									return res;
 								}
 							}
-							else if (sc.left_.bitmap_ != BITMAP_EMPTY) 
+							else if (sc->left_.bitmap_ != BITMAP_EMPTY) 
 							{
-								const bin_t res = binmap_t::_find_complement(destination.root_bin_, destination.root_ref_, destination, sc.left_.bitmap_, twist);
+								const bin_t res = binmap_t::_find_complement(destination.root_bin_, destination.root_cell_, destination, sc->left_.bitmap_, twist);
 								if (!res.is_none())
 								{
 									return res;
@@ -1076,31 +1064,31 @@ namespace xcore
 							continue;
 						}
 
-						if (sc.is_left_ref()) 
+						if (sc->is_left_ref()) 
 						{
-							SPUSH(b.left(), sc.left_.ref_, twist);
+							SPUSH(b.left(), sc->left_.ref_, twist);
 							continue;
 
 						}
-						else if (sc.left_.bitmap_ != BITMAP_EMPTY) 
+						else if (sc->left_.bitmap_ != BITMAP_EMPTY) 
 						{
 							if (0 == (twist & (b.left().base_length() - 1) & ~(destination.root_bin_.base_length() - 1)))
 							{
-								const bin_t res = binmap_t::_find_complement(destination.root_bin_, destination.root_ref_, destination, sc.left_.bitmap_, twist);
+								const bin_t res = binmap_t::_find_complement(destination.root_bin_, destination.root_cell_, destination, sc->left_.bitmap_, twist);
 								if (!res.is_none())
 								{
 									return res;
 								}
-								return binmap_t::_find_complement(destination.root_bin_.sibling(), BITMAP_EMPTY, sc.left_.bitmap_, twist);
+								return binmap_t::_find_complement(destination.root_bin_.sibling(), BITMAP_EMPTY, sc->left_.bitmap_, twist);
 
 							}
-							else if (sc.left_.bitmap_ != BITMAP_FILLED)
+							else if (sc->left_.bitmap_ != BITMAP_FILLED)
 							{
-								return binmap_t::_find_complement(b.left(), BITMAP_EMPTY, sc.left_.bitmap_, twist);
+								return binmap_t::_find_complement(b.left(), BITMAP_EMPTY, sc->left_.bitmap_, twist);
 							} 
 							else 
 							{
-								u64 s = twist & (b.left().base_length() - 1);
+								bin_t::uint_t s = twist & (b.left().base_length() - 1);
 								/* Sorry for the following hardcode hack: Flow the highest bit of s */
 								s |= s >> 1; s |= s >> 2;
 								s |= s >> 4; s |= s >> 8;
@@ -1113,13 +1101,13 @@ namespace xcore
 					} 
 					else
 					{
-						if (sc.is_right_ref())
+						if (sc->is_right_ref())
 						{
-							return binmap_t::_find_complement(b.right(), BITMAP_EMPTY, sc.right_.ref_, source, twist);
+							return binmap_t::_find_complement(b.right(), BITMAP_EMPTY, sc->right_.ref_, source, twist);
 						} 
-						else if (sc.right_.bitmap_ != BITMAP_EMPTY) 
+						else if (sc->right_.bitmap_ != BITMAP_EMPTY) 
 						{
-							return binmap_t::_find_complement(b.right(), BITMAP_EMPTY, sc.right_.bitmap_, twist);
+							return binmap_t::_find_complement(b.right(), BITMAP_EMPTY, sc->right_.bitmap_, twist);
 						}
 						continue;
 					}
@@ -1132,7 +1120,7 @@ namespace xcore
 			{
 				if (0 == (twist & (range.base_length() - 1) & ~(destination.root_bin_.base_length() - 1)))
 				{
-					const bin_t res = binmap_t::_find_complement(destination.root_bin_, destination.root_ref_, destination, sbitmap, twist);
+					const bin_t res = binmap_t::_find_complement(destination.root_bin_, destination.root_cell_, destination, sbitmap, twist);
 					if (!res.is_none())
 					{
 						return res;
@@ -1145,7 +1133,7 @@ namespace xcore
 				} 
 				else 
 				{
-					u64 s = twist & (range.base_length() - 1);
+					bin_t::uint_t s = twist & (range.base_length() - 1);
 					/* Sorry for the following hardcode hack: Flow the highest bit of s */
 					s |= s >> 1; s |= s >> 2;
 					s |= s >> 4; s |= s >> 8;
@@ -1158,7 +1146,7 @@ namespace xcore
 	}
 
 
-	bin_t binmap_t::_find_complement(const bin_t& bin, const ref_t dref, const binmap_t& destination, const ref_t sref, const binmap_t& source, const u64 twist)
+	bin_t binmap_t::_find_complement(const bin_t& bin, const pcell_t dref, const binmap_t& destination, const pcell_t sref, const binmap_t& source, const u64 twist)
 	{
 		/* Initialization */
 		SDSTACK();
@@ -1171,16 +1159,16 @@ namespace xcore
 
 			if (is_left)
 			{
-				if (sc.is_left_ref()) 
+				if (sc->is_left_ref()) 
 				{
-					if (dc.is_left_ref()) 
+					if (dc->is_left_ref()) 
 					{
-						SDPUSH(b.left(), sc.left_.ref_, dc.left_.ref_, twist);
+						SDPUSH(b.left(), sc->left_.ref_, dc->left_.ref_, twist);
 						continue;
 					}
-					else if (dc.left_.bitmap_ != BITMAP_FILLED)
+					else if (dc->left_.bitmap_ != BITMAP_FILLED)
 					{
-						const bin_t res = binmap_t::_find_complement(b.left(), dc.left_.bitmap_, sc.left_.ref_, source, twist);
+						const bin_t res = binmap_t::_find_complement(b.left(), dc->left_.bitmap_, sc->left_.ref_, source, twist);
 						if (!res.is_none()) 
 						{
 							return res;
@@ -1189,11 +1177,11 @@ namespace xcore
 					}
 
 				} 
-				else if (sc.left_.bitmap_ != BITMAP_EMPTY) 
+				else if (sc->left_.bitmap_ != BITMAP_EMPTY) 
 				{
-					if (dc.is_left_ref())
+					if (dc->is_left_ref())
 					{
-						const bin_t res = binmap_t::_find_complement(b.left(), dc.left_.ref_, destination, sc.left_.bitmap_, twist);
+						const bin_t res = binmap_t::_find_complement(b.left(), dc->left_.ref_, destination, sc->left_.bitmap_, twist);
 						if (!res.is_none())
 						{
 							return res;
@@ -1201,23 +1189,23 @@ namespace xcore
 						continue;
 
 					}
-					else if ((sc.left_.bitmap_ & ~dc.left_.bitmap_) != BITMAP_EMPTY)
+					else if ((sc->left_.bitmap_ & ~dc->left_.bitmap_) != BITMAP_EMPTY)
 					{
-						return binmap_t::_find_complement(b.left(), dc.left_.bitmap_, sc.left_.bitmap_, twist);
+						return binmap_t::_find_complement(b.left(), dc->left_.bitmap_, sc->left_.bitmap_, twist);
 					}
 				}
 
 			} else
 			{
-				if (sc.is_right_ref())
+				if (sc->is_right_ref())
 				{
-					if (dc.is_right_ref()) 
+					if (dc->is_right_ref()) 
 					{
-						SDPUSH(b.right(), sc.right_.ref_, dc.right_.ref_, twist);
+						SDPUSH(b.right(), sc->right_.ref_, dc->right_.ref_, twist);
 						continue;
-					} else if (dc.right_.bitmap_ != BITMAP_FILLED)
+					} else if (dc->right_.bitmap_ != BITMAP_FILLED)
 					{
-						const bin_t res = binmap_t::_find_complement(b.right(), dc.right_.bitmap_, sc.right_.ref_, source, twist);
+						const bin_t res = binmap_t::_find_complement(b.right(), dc->right_.bitmap_, sc->right_.ref_, source, twist);
 						if (!res.is_none())
 						{
 							return res;
@@ -1226,11 +1214,11 @@ namespace xcore
 					}
 
 				} 
-				else if (sc.right_.bitmap_ != BITMAP_EMPTY) 
+				else if (sc->right_.bitmap_ != BITMAP_EMPTY) 
 				{
-					if (dc.is_right_ref()) 
+					if (dc->is_right_ref()) 
 					{
-						const bin_t res = binmap_t::_find_complement(b.right(), dc.right_.ref_, destination, sc.right_.bitmap_, twist);
+						const bin_t res = binmap_t::_find_complement(b.right(), dc->right_.ref_, destination, sc->right_.bitmap_, twist);
 						if (!res.is_none())
 						{
 							return res;
@@ -1238,9 +1226,9 @@ namespace xcore
 						continue;
 
 					} 
-					else if ((sc.right_.bitmap_ & ~dc.right_.bitmap_) != BITMAP_EMPTY)
+					else if ((sc->right_.bitmap_ & ~dc->right_.bitmap_) != BITMAP_EMPTY)
 					{
-						return binmap_t::_find_complement(b.right(), dc.right_.bitmap_, sc.right_.bitmap_, twist);
+						return binmap_t::_find_complement(b.right(), dc->right_.bitmap_, sc->right_.bitmap_, twist);
 					}
 				}
 			}
@@ -1250,13 +1238,13 @@ namespace xcore
 	}
 
 
-	bin_t binmap_t::_find_complement(const bin_t& bin, const bitmap_t dbitmap, const ref_t sref, const binmap_t& source, const u64 twist)
+	bin_t binmap_t::_find_complement(const bin_t& bin, const bitmap_t dbitmap, const pcell_t sref, const binmap_t& source, const u64 twist)
 	{
-		ASSERT (dbitmap != BITMAP_EMPTY || sref != source.root_ref_ ||
-			source.cell_[source.root_ref_].is_left_ref() ||
-			source.cell_[source.root_ref_].is_right_ref() ||
-			source.cell_[source.root_ref_].left_.bitmap_ != BITMAP_FILLED ||
-			source.cell_[source.root_ref_].right_.bitmap_ != BITMAP_FILLED);
+		ASSERT (dbitmap != BITMAP_EMPTY || sref != source.root_cell_ ||
+			source.root_cell_->is_left_ref() ||
+			source.root_cell_->is_right_ref() ||
+			source.root_cell_->left_.bitmap_ != BITMAP_FILLED ||
+			source.root_cell_->right_.bitmap_ != BITMAP_FILLED);
 
 		/* Initialization */
 		SSTACK();
@@ -1269,27 +1257,27 @@ namespace xcore
 
 			if (is_left)
 			{
-				if (sc.is_left_ref())
+				if (sc->is_left_ref())
 				{
-					SPUSH(b.left(), sc.left_.ref_, twist);
+					SPUSH(b.left(), sc->left_.ref_, twist);
 					continue;
 				} 
-				else if ((sc.left_.bitmap_ & ~dbitmap) != BITMAP_EMPTY)
+				else if ((sc->left_.bitmap_ & ~dbitmap) != BITMAP_EMPTY)
 				{
-					return binmap_t::_find_complement(b.left(), dbitmap, sc.left_.bitmap_, twist);
+					return binmap_t::_find_complement(b.left(), dbitmap, sc->left_.bitmap_, twist);
 				}
 
 			} 
 			else 
 			{
-				if (sc.is_right_ref())
+				if (sc->is_right_ref())
 				{
-					SPUSH(b.right(), sc.right_.ref_, twist);
+					SPUSH(b.right(), sc->right_.ref_, twist);
 					continue;
 				} 
-				else if ((sc.right_.bitmap_ & ~dbitmap) != BITMAP_EMPTY) 
+				else if ((sc->right_.bitmap_ & ~dbitmap) != BITMAP_EMPTY) 
 				{
-					return binmap_t::_find_complement(b.right(), dbitmap, sc.right_.bitmap_, twist);
+					return binmap_t::_find_complement(b.right(), dbitmap, sc->right_.bitmap_, twist);
 				}
 			}
 		} while (_top_ > 0);
@@ -1298,7 +1286,7 @@ namespace xcore
 	}
 
 
-	bin_t binmap_t::_find_complement(const bin_t& bin, const ref_t dref, const binmap_t& destination, const bitmap_t sbitmap, const u64 twist)
+	bin_t binmap_t::_find_complement(const bin_t& bin, const pcell_t dref, const binmap_t& destination, const bitmap_t sbitmap, const bin_t::uint_t twist)
 	{
 		/* Initialization */
 		DSTACK();
@@ -1311,25 +1299,25 @@ namespace xcore
 
 			if (is_left)
 			{
-				if (dc.is_left_ref())
+				if (dc->is_left_ref())
 				{
-					DPUSH(b.left(), dc.left_.ref_, twist);
+					DPUSH(b.left(), dc->left_.ref_, twist);
 					continue;
 				}
-				else if ((sbitmap & ~dc.left_.bitmap_) != BITMAP_EMPTY)
+				else if ((sbitmap & ~dc->left_.bitmap_) != BITMAP_EMPTY)
 				{
-					return binmap_t::_find_complement(b.left(), dc.left_.bitmap_, sbitmap, twist);
+					return binmap_t::_find_complement(b.left(), dc->left_.bitmap_, sbitmap, twist);
 				}
 
 			} else {
-				if (dc.is_right_ref())
+				if (dc->is_right_ref())
 				{
-					DPUSH(b.right(), dc.right_.ref_, twist);
+					DPUSH(b.right(), dc->right_.ref_, twist);
 					continue;
 				}
-				else if ((sbitmap & ~dc.right_.bitmap_) != BITMAP_EMPTY)
+				else if ((sbitmap & ~dc->right_.bitmap_) != BITMAP_EMPTY)
 				{
-					return binmap_t::_find_complement(b.right(), dc.right_.bitmap_, sbitmap, twist);
+					return binmap_t::_find_complement(b.right(), dc->right_.bitmap_, sbitmap, twist);
 				}
 			}
 		} while (_top_ > 0);
@@ -1338,7 +1326,7 @@ namespace xcore
 	}
 
 
-	bin_t binmap_t::_find_complement(const bin_t& bin, const bitmap_t dbitmap, const bitmap_t sbitmap, u64 twist)
+	bin_t binmap_t::_find_complement(const bin_t& bin, const bitmap_t dbitmap, const bitmap_t sbitmap, bin_t::uint_t twist)
 	{
 		bitmap_t bitmap = sbitmap & ~dbitmap;
 
@@ -1420,9 +1408,9 @@ namespace xcore
 				//
 				// see tests/binstest3.cpp
 
-				u64 rangestart = bin.base_left().twisted(twist & ~0x1f).layer_offset();
-				u64 b2b = bitmap_to_bin(bitmap);
-				u64 absoff = ((int)(rangestart/32))*32 + b2b/2;
+				bin_t::uint_t rangestart = bin.base_left().twisted(twist & ~0x1f).layer_offset();
+				bin_t::uint_t b2b = bitmap_to_bin(bitmap);
+				bin_t::uint_t absoff = ((int)(rangestart/32))*32 + b2b/2;
 
 				diff = bin_t(0,absoff);
 				diff = diff.to_twisted(twist & 0x1f);
@@ -1488,21 +1476,20 @@ namespace xcore
 	*/
 	void binmap_t::clear()
 	{
-		cell_t& cell = cell_[root_ref_];
-
-		if (cell.is_left_ref()) 
+		cell_t* cell = root_cell_;
+		if (cell->is_left_ref()) 
 		{
-			free_cell(cell.left_.ref_);
+			free_cell(cell->left_.ref_);
 		}
-		if (cell.is_right_ref())
+		if (cell->is_right_ref())
 		{
-			free_cell(cell.right_.ref_);
+			free_cell(cell->right_.ref_);
 		}
 
-		cell.set_is_left_ref(false);
-		cell.set_is_right_ref(false);
-		cell.left_.bitmap_ = BITMAP_EMPTY;
-		cell.right_.bitmap_ = BITMAP_EMPTY;
+		cell->set_is_left_ref(false);
+		cell->set_is_right_ref(false);
+		cell->left_.bitmap_ = BITMAP_EMPTY;
+		cell->right_.bitmap_ = BITMAP_EMPTY;
 	}
 
 
@@ -1523,12 +1510,12 @@ namespace xcore
 		}
 		set(source.root_bin_);
 
-		cell_t& cell = cell_[root_ref_];
+		cell_t* cell = root_cell_;
 
-		cell.set_is_left_ref(false);
-		cell.set_is_right_ref(false);
-		cell.left_.bitmap_ = BITMAP_FILLED;
-		cell.right_.bitmap_ = BITMAP_FILLED;
+		cell->set_is_left_ref(false);
+		cell->set_is_right_ref(false);
+		cell->left_.bitmap_ = BITMAP_FILLED;
+		cell->right_.bitmap_ = BITMAP_FILLED;
 	}
 
 
@@ -1574,20 +1561,20 @@ namespace xcore
 
 
 	/** Trace the bin */
-	inline void binmap_t::trace(ref_t* ref, bin_t* bin, const bin_t& target) const
+	inline void binmap_t::trace(pcell_t* ref, bin_t* bin, const bin_t& target) const
 	{
 		ASSERT (root_bin_.contains(target));
 
-		ref_t cur_ref = root_ref_;
+		pcell_t cur_ref = root_cell_;
 		bin_t cur_bin = root_bin_;
 
 		while (target != cur_bin) 
 		{
 			if (target < cur_bin)
 			{
-				if (cell_[cur_ref].is_left_ref())
+				if (cur_ref->is_left_ref())
 				{
-					cur_ref = cell_[cur_ref].left_.ref_;
+					cur_ref = cur_ref->left_.ref_;
 					cur_bin.to_left();
 				} 
 				else
@@ -1597,9 +1584,9 @@ namespace xcore
 			}
 			else
 			{
-				if (cell_[cur_ref].is_right_ref()) 
+				if (cur_ref->is_right_ref()) 
 				{
-					cur_ref = cell_[cur_ref].right_.ref_;
+					cur_ref = cur_ref->right_.ref_;
 					cur_bin.to_right();
 				} 
 				else
@@ -1623,23 +1610,23 @@ namespace xcore
 
 
 	/** Trace the bin */
-	inline void binmap_t::trace(ref_t* ref, bin_t* bin, ref_t** history, const bin_t& target) const
+	inline void binmap_t::trace(pcell_t* ref, bin_t* bin, pcell_t** history, const bin_t& target) const
 	{
 		ASSERT (history);
 		ASSERT (root_bin_.contains(target));
 
-		ref_t* href = *history;
-		ref_t cur_ref = root_ref_;
+		pcell_t* href = *history;
+		pcell_t cur_ref = root_cell_;
 		bin_t cur_bin = root_bin_;
 
-		*href++ = root_ref_;
+		*href++ = root_cell_;
 		while (target != cur_bin) 
 		{
 			if (target < cur_bin) 
 			{
-				if (cell_[cur_ref].is_left_ref()) 
+				if (cur_ref->is_left_ref()) 
 				{
-					cur_ref = cell_[cur_ref].left_.ref_;
+					cur_ref = cur_ref->left_.ref_;
 					cur_bin.to_left();
 				} 
 				else
@@ -1649,9 +1636,9 @@ namespace xcore
 			}
 			else
 			{
-				if (cell_[cur_ref].is_right_ref())
+				if (cur_ref->is_right_ref())
 				{
-					cur_ref = cell_[cur_ref].right_.ref_;
+					cur_ref = cur_ref->right_.ref_;
 					cur_bin.to_right();
 				}
 				else
@@ -1684,7 +1671,7 @@ namespace xcore
 	void binmap_t::copy(binmap_t& destination, const binmap_t& source)
 	{
 		destination.root_bin_ = source.root_bin_;
-		binmap_t::copy(destination, destination.root_ref_, source, source.root_ref_);
+		binmap_t::copy(destination, destination.root_cell_, source, source.root_cell_);
 	}
 
 
@@ -1693,7 +1680,7 @@ namespace xcore
 	*/
 	void binmap_t::copy(binmap_t& destination, const binmap_t& source, const bin_t& range)
 	{
-		ref_t int_ref;
+		pcell_t int_ref;
 		bin_t int_bin;
 
 		if (range.contains(destination.root_bin_))
@@ -1702,12 +1689,12 @@ namespace xcore
 			{
 				source.trace(&int_ref, &int_bin, range);
 				destination.root_bin_ = range;
-				binmap_t::copy(destination, destination.root_ref_, source, int_ref);
+				binmap_t::copy(destination, destination.root_cell_, source, int_ref);
 			} 
 			else if (range.contains(source.root_bin_))
 			{
 				destination.root_bin_ = source.root_bin_;
-				binmap_t::copy(destination, destination.root_ref_, source, source.root_ref_);
+				binmap_t::copy(destination, destination.root_cell_, source, source.root_cell_);
 			} 
 			else 
 			{
@@ -1721,39 +1708,39 @@ namespace xcore
 			{
 				source.trace(&int_ref, &int_bin, range);
 
-				const cell_t& cell = source.cell_[int_ref];
+				cell_t* cell = int_ref;
 
 				if (range.layer_bits() <= BITMAP_LAYER_BITS)
 				{
 					if (range < int_bin)
 					{
-						destination._set__low_layer_bitmap(range, cell.left_.bitmap_);
+						destination._set__low_layer_bitmap(range, cell->left_.bitmap_);
 					}
 					else 
 					{
-						destination._set__low_layer_bitmap(range, cell.right_.bitmap_);
+						destination._set__low_layer_bitmap(range, cell->right_.bitmap_);
 					}
 				}
 				else 
 				{
 					if (range == int_bin) 
 					{
-						if (cell.is_left_ref() || cell.is_right_ref() || cell.left_.bitmap_ != cell.right_.bitmap_)
+						if (cell->is_left_ref() || cell->is_right_ref() || cell->left_.bitmap_ != cell->right_.bitmap_)
 						{
 							binmap_t::_copy__range(destination, source, int_ref, range);
 						}
 						else 
 						{
-							destination._set__high_layer_bitmap(range, cell.left_.bitmap_);
+							destination._set__high_layer_bitmap(range, cell->left_.bitmap_);
 						}
 					}
 					else if (range < int_bin)
 					{
-						destination._set__high_layer_bitmap(range, cell.left_.bitmap_);
+						destination._set__high_layer_bitmap(range, cell->left_.bitmap_);
 					}
 					else 
 					{
-						destination._set__high_layer_bitmap(range, cell.right_.bitmap_);
+						destination._set__high_layer_bitmap(range, cell->right_.bitmap_);
 					}
 				}
 
@@ -1762,15 +1749,15 @@ namespace xcore
 			{
 				destination.reset(range);   // Probably it could be optimized
 
-				const cell_t& cell = source.cell_[ source.root_ref_ ];
+				cell_t* cell = source. root_cell_;
 
-				if (cell.is_left_ref() || cell.is_right_ref() || cell.left_.bitmap_ != cell.right_.bitmap_) 
+				if (cell->is_left_ref() || cell->is_right_ref() || cell->left_.bitmap_ != cell->right_.bitmap_) 
 				{
-					binmap_t::_copy__range(destination, source, source.root_ref_, source.root_bin_);
+					binmap_t::_copy__range(destination, source, source.root_cell_, source.root_bin_);
 				}
 				else
 				{
-					destination._set__high_layer_bitmap(source.root_bin_, cell.left_.bitmap_);
+					destination._set__high_layer_bitmap(source.root_bin_, cell->left_.bitmap_);
 				}
 
 			}
@@ -1809,9 +1796,9 @@ namespace xcore
 		const bin_t pre_bin( (bin.value() & (~(BITMAP_LAYER_BITS + 1))) | BITMAP_LAYER_BITS );
 
 		/* Trace the bin with history */
-		ref_t _href[64];
-		ref_t* href = _href;
-		ref_t cur_ref;
+		pcell_t _href[64];
+		pcell_t* href = _href;
+		pcell_t cur_ref = 0;
 		bin_t cur_bin;
 
 		/* Process first stage -- do not touch existing tree */
@@ -1822,34 +1809,34 @@ namespace xcore
 		/* Checking that we need to do anything */
 		bitmap_t bm = BITMAP_EMPTY;
 		{
-			cell_t& cell = cell_[cur_ref];
+			cell_t* cell = cur_ref;
 
 			if (bin < cur_bin)
 			{
-				ASSERT (!cell.is_left_ref());
-				bm = cell.left_.bitmap_;
+				ASSERT (!cell->is_left_ref());
+				bm = cell->left_.bitmap_;
 				if ((bm & bin_bitmap) == bitmap)
 				{
 					return;
 				}
 				if (cur_bin == pre_bin)
 				{
-					cell.left_.bitmap_ = (bm & ~bin_bitmap) | bitmap;
+					cell->left_.bitmap_ = (cell->left_.bitmap_ & ~bin_bitmap) | bitmap;
 					pack_cells(href - 1);
 					return;
 				}
 			}
 			else 
 			{
-				ASSERT (!cell.is_right_ref());
-				bm = cell.right_.bitmap_;
+				ASSERT (!cell->is_right_ref());
+				bm = cell->right_.bitmap_;
 				if ((bm & bin_bitmap) == bitmap)
 				{
 					return;
 				}
 				if (cur_bin == pre_bin)
 				{
-					cell.right_.bitmap_ = (bm & ~bin_bitmap) | bitmap;
+					cell->right_.bitmap_ = (cell->right_.bitmap_ & ~bin_bitmap) | bitmap;
 					pack_cells(href - 1);
 					return;
 				}
@@ -1859,24 +1846,24 @@ namespace xcore
 		/* Continue to trace */
 		do 
 		{
-			const ref_t ref = _alloc_cell();
-			cell_t& ref_cell = cell_[ref];
-			ref_cell.set_is_left_ref(false);
-			ref_cell.set_is_right_ref(false);
-			ref_cell.left_.bitmap_ = bm;
-			ref_cell.right_.bitmap_ = bm;
+			const pcell_t ref = alloc_cell();
+			cell_t* ref_cell = ref;
+			ref_cell->set_is_left_ref(false);
+			ref_cell->set_is_right_ref(false);
+			ref_cell->left_.bitmap_ = bm;
+			ref_cell->right_.bitmap_ = bm;
 
-			cell_t& cur_cell = cell_[cur_ref];
+			cell_t* cur_cell = cur_ref;
 			if (pre_bin < cur_bin)
 			{
-				cur_cell.set_is_left_ref(true);
-				cur_cell.left_.ref_ = ref;
+				cur_cell->set_is_left_ref(true);
+				cur_cell->left_.ref_ = ref;
 				cur_bin.to_left();
 			}
 			else 
 			{
-				cur_cell.set_is_right_ref(true);
-				cur_cell.right_.ref_ = ref;
+				cur_cell->set_is_right_ref(true);
+				cur_cell->right_.ref_ = ref;
 				cur_bin.to_right();
 			}
 
@@ -1887,14 +1874,14 @@ namespace xcore
 		ASSERT (cur_bin.layer_bits() > BITMAP_LAYER_BITS);
 
 		/* Complete setting */
-		cell_t& cur_cell = cell_[cur_ref];
+		cell_t* cur_cell = cur_ref;
 		if (bin < cur_bin) 
 		{
-			cur_cell.left_.bitmap_ = (cur_cell.left_.bitmap_ & ~bin_bitmap) | bitmap;
+			cur_cell->left_.bitmap_ = (cur_cell->left_.bitmap_ & ~bin_bitmap) | bitmap;
 		}
 		else 
 		{
-			cur_cell.right_.bitmap_ = (cur_cell.right_.bitmap_ & ~bin_bitmap) | bitmap;
+			cur_cell->right_.bitmap_ = (cur_cell->right_.bitmap_ & ~bin_bitmap) | bitmap;
 		}
 	}
 
@@ -1906,21 +1893,21 @@ namespace xcore
 		/* First trivial case */
 		if (bin.contains(root_bin_)) 
 		{
-			cell_t& cell = cell_[root_ref_];
-			if (cell.is_left_ref()) 
+			cell_t* cell = root_cell_;
+			if (cell->is_left_ref()) 
 			{
-				free_cell(cell.left_.ref_);
+				free_cell(cell->left_.ref_);
 			}
-			if (cell.is_right_ref()) 
+			if (cell->is_right_ref()) 
 			{
-				free_cell(cell.right_.ref_);
+				free_cell(cell->right_.ref_);
 			}
 
 			root_bin_ = bin;
-			cell.set_is_left_ref(false);
-			cell.set_is_right_ref(false);
-			cell.left_.bitmap_ = bitmap;
-			cell.right_.bitmap_ = bitmap;
+			cell->set_is_left_ref(false);
+			cell->set_is_right_ref(false);
+			cell->left_.bitmap_ = bitmap;
+			cell->right_.bitmap_ = bitmap;
 
 			return;
 		}
@@ -1947,9 +1934,9 @@ namespace xcore
 		}
 
 		/* The trace the bin with history */
-		ref_t _href[64];
-		ref_t* href = _href;
-		ref_t cur_ref;
+		pcell_t _href[64];
+		pcell_t* href = _href;
+		pcell_t cur_ref;
 		bin_t cur_bin;
 
 		/* Process first stage -- do not touch existed tree */
@@ -1958,18 +1945,18 @@ namespace xcore
 		/* Checking that we need to do anything */
 		bitmap_t bm = BITMAP_EMPTY;
 		{
-			cell_t& cell = cell_[cur_ref];
+			cell_t* cell = cur_ref;
 			if (bin < cur_bin)
 			{
-				if (cell.is_left_ref()) 
+				if (cell->is_left_ref()) 
 				{
 					/* ASSERT (cur_bin == pre_bin); */
-					cell.set_is_left_ref(false);
-					free_cell(cell.left_.ref_);
+					cell->set_is_left_ref(false);
+					free_cell(cell->left_.ref_);
 				}
 				else
 				{
-					bm = cell.left_.bitmap_;
+					bm = cell->left_.bitmap_;
 					if (bm == bitmap) 
 					{
 						return;
@@ -1977,22 +1964,22 @@ namespace xcore
 				}
 				if (cur_bin == pre_bin)
 				{
-					cell.left_.bitmap_ = bitmap;
+					cell->left_.bitmap_ = bitmap;
 					pack_cells(href - 1);
 					return;
 				}
 			}
 			else 
 			{
-				if (cell.is_right_ref())
+				if (cell->is_right_ref())
 				{
 					/* ASSERT (cur_bin == pre_bin); */
-					cell.set_is_right_ref(false);
-					free_cell(cell.right_.ref_);
+					cell->set_is_right_ref(false);
+					free_cell(cell->right_.ref_);
 				}
 				else
 				{
-					bm = cell.right_.bitmap_;
+					bm = cell->right_.bitmap_;
 					if (bm == bitmap) 
 					{
 						return;
@@ -2000,7 +1987,7 @@ namespace xcore
 				}
 				if (cur_bin == pre_bin) 
 				{
-					cell.right_.bitmap_ = bitmap;
+					cell->right_.bitmap_ = bitmap;
 					pack_cells(href - 1);
 					return;
 				}
@@ -2010,24 +1997,24 @@ namespace xcore
 		/* Continue to trace */
 		do
 		{
-			const ref_t ref = _alloc_cell();
-			cell_t& ref_cell = cell_[ref];
-			ref_cell.set_is_left_ref(false);
-			ref_cell.set_is_right_ref(false);
-			ref_cell.left_.bitmap_ = bm;
-			ref_cell.right_.bitmap_ = bm;
+			const pcell_t ref = alloc_cell();
+			cell_t* ref_cell = ref;
+			ref_cell->set_is_left_ref(false);
+			ref_cell->set_is_right_ref(false);
+			ref_cell->left_.bitmap_ = bm;
+			ref_cell->right_.bitmap_ = bm;
 
-			cell_t& cur_cell = cell_[cur_ref];
+			cell_t* cur_cell = cur_ref;
 			if (pre_bin < cur_bin)
 			{
-				cur_cell.set_is_left_ref(true);
-				cur_cell.left_.ref_ = ref;
+				cur_cell->set_is_left_ref(true);
+				cur_cell->left_.ref_ = ref;
 				cur_bin.to_left();
 			}
 			else
 			{
-				cur_cell.set_is_right_ref(true);
-				cur_cell.right_.ref_ = ref;
+				cur_cell->set_is_right_ref(true);
+				cur_cell->right_.ref_ = ref;
 				cur_bin.to_right();
 			}
 
@@ -2040,22 +2027,22 @@ namespace xcore
 		/* Complete setting */
 		if (bin < cur_bin)
 		{
-			cell_[cur_ref].left_.bitmap_ = bitmap;
+			cur_ref->left_.bitmap_ = bitmap;
 		} 
 		else
 		{
-			cell_[cur_ref].right_.bitmap_ = bitmap;
+			cur_ref->right_.bitmap_ = bitmap;
 		}
 	}
 
 
-	void binmap_t::_copy__range(binmap_t& destination, const binmap_t& source, const ref_t sref, const bin_t sbin)
+	void binmap_t::_copy__range(binmap_t& destination, const binmap_t& source, const pcell_t sref, const bin_t sbin)
 	{
 		ASSERT (sbin.layer_bits() > BITMAP_LAYER_BITS);
 
-		ASSERT (sref == source.root_ref_ ||
-			source.cell_[ sref ].is_left_ref() || source.cell_[ sref ].is_right_ref() ||
-			source.cell_[ sref ].left_.bitmap_ != source.cell_[ sref ].right_.bitmap_
+		ASSERT (sref == source.root_cell_ ||
+			sref->is_left_ref() || sref->is_right_ref() ||
+			sref->left_.bitmap_ != sref->right_.bitmap_
 			);
 
 		/* Extends root if needed */
@@ -2068,7 +2055,7 @@ namespace xcore
 		}
 
 		/* The trace the bin */
-		ref_t cur_ref;
+		pcell_t cur_ref;
 		bin_t cur_bin;
 
 		/* Process first stage -- do not touch existed tree */
@@ -2079,36 +2066,33 @@ namespace xcore
 		{
 			bitmap_t bm = BITMAP_EMPTY;
 
-			if (sbin < cur_bin)
-			{
-				bm = destination.cell_[cur_ref].left_.bitmap_;
-			} 
-			else
-			{
-				bm = destination.cell_[cur_ref].right_.bitmap_;
+			if (sbin < cur_bin) {
+				bm = cur_ref->left_.bitmap_;
+			} else {
+				bm = cur_ref->right_.bitmap_;
 			}
 
 			/* Continue to trace */
 			do
 			{
-				const ref_t ref = destination._alloc_cell();
-				cell_t& ref_cell = destination.cell_[cur_ref];
-				ref_cell.set_is_left_ref(false);
-				ref_cell.set_is_right_ref(false);
-				ref_cell.left_.bitmap_ = bm;
-				ref_cell.right_.bitmap_ = bm;
+				const pcell_t ref = destination.alloc_cell();
+				cell_t* ref_cell = cur_ref;
+				ref_cell->set_is_left_ref(false);
+				ref_cell->set_is_right_ref(false);
+				ref_cell->left_.bitmap_ = bm;
+				ref_cell->right_.bitmap_ = bm;
 
-				cell_t& cur_cell = destination.cell_[cur_ref];
+				cell_t* cur_cell = cur_ref;
 				if (sbin < cur_bin)
 				{
-					cur_cell.set_is_left_ref(true);
-					cur_cell.left_.ref_ = ref;
+					cur_cell->set_is_left_ref(true);
+					cur_cell->left_.ref_ = ref;
 					cur_bin.to_left();
 				}
 				else 
 				{
-					cur_cell.set_is_right_ref(true);
-					cur_cell.right_.ref_ = ref;
+					cur_cell->set_is_right_ref(true);
+					cur_cell->right_.ref_ = ref;
 					cur_bin.to_right();
 				}
 
@@ -2124,18 +2108,15 @@ namespace xcore
 	/**
 	* Clone binmap cells to another binmap
 	*/
-	void binmap_t::copy(binmap_t& destination, const ref_t dref, const binmap_t& source, const ref_t sref)
+	void binmap_t::copy(binmap_t& destination, const pcell_t dref, const binmap_t& source, const pcell_t sref)
 	{
-		ASSERT (dref == destination.root_ref_ ||
-			source.cell_[ sref ].is_left_ref() || source.cell_[ sref ].is_right_ref() ||
-			source.cell_[ sref ].left_.bitmap_ != source.cell_[ sref ].right_.bitmap_
-			);
+		ASSERT (dref == destination.root_cell_ || sref->is_left_ref() || sref->is_right_ref() || sref->left_.bitmap_ != sref->right_.bitmap_);
 
 		size_t sref_size = 0;
 		size_t dref_size = 0;
 
-		ref_t sstack[128];
-		ref_t dstack[128];
+		pcell_t sstack[128];
+		pcell_t dstack[128];
 		size_t top = 0;
 
 		/* Get size of the source subtree */
@@ -2146,14 +2127,14 @@ namespace xcore
 
 			++sref_size;
 
-			const cell_t& scell = source.cell_[ sstack[--top] ];
-			if (scell.is_left_ref()) 
+			cell_t* scell = sstack[--top];
+			if (scell->is_left_ref()) 
 			{
-				sstack[top++] = scell.left_.ref_;
+				sstack[top++] = scell->left_.ref_;
 			}
-			if (scell.is_right_ref())
+			if (scell->is_right_ref())
 			{
-				sstack[top++] = scell.right_.ref_;
+				sstack[top++] = scell->right_.ref_;
 			}
 
 		} while (top > 0);
@@ -2166,14 +2147,14 @@ namespace xcore
 
 			++dref_size;
 
-			const cell_t& dcell = destination.cell_[ dstack[--top] ];
-			if (dcell.is_left_ref()) 
+			cell_t* dcell = dstack[--top];
+			if (dcell->is_left_ref()) 
 			{
-				dstack[top++] = dcell.left_.ref_;
+				dstack[top++] = dcell->left_.ref_;
 			}
-			if (dcell.is_right_ref()) 
+			if (dcell->is_right_ref()) 
 			{
-				dstack[top++] = dcell.right_.ref_;
+				dstack[top++] = dcell->right_.ref_;
 			}
 
 		} while (top > 0);
@@ -2185,14 +2166,14 @@ namespace xcore
 		}
 
 		/* Release the destination subtree */
-		cell_t& dref_cell = destination.cell_[dref];
-		if (dref_cell.is_left_ref())
+		cell_t* dref_cell = dref;
+		if (dref_cell->is_left_ref())
 		{
-			destination.free_cell(dref_cell.left_.ref_);
+			destination.free_cell(dref_cell->left_.ref_);
 		}
-		if (dref_cell.is_right_ref()) 
+		if (dref_cell->is_right_ref()) 
 		{
-			destination.free_cell(dref_cell.right_.ref_);
+			destination.free_cell(dref_cell->right_.ref_);
 		}
 
 		/* Make cloning */
@@ -2203,39 +2184,39 @@ namespace xcore
 		do
 		{
 			--top;
-			const cell_t& scell = source.cell_[ sstack[top] ];
-			cell_t& dcell = destination.cell_[ dstack[top] ];
+			cell_t* scell = sstack[top];
+			cell_t* dcell = dstack[top];
 
 			/* Processing left ref */
-			if (scell.is_left_ref()) 
+			if (scell->is_left_ref()) 
 			{
-				dcell.set_is_left_ref(true);
-				dcell.left_.ref_ = destination._alloc_cell();
+				dcell->set_is_left_ref(true);
+				dcell->left_.ref_ = destination.alloc_cell();
 
-				sstack[top] = scell.left_.ref_;
-				dstack[top] = dcell.left_.ref_;
+				sstack[top] = scell->left_.ref_;
+				dstack[top] = dcell->left_.ref_;
 				++top;
 			}
 			else 
 			{
-				dcell.set_is_left_ref(false);
-				dcell.left_.bitmap_ = scell.left_.bitmap_;
+				dcell->set_is_left_ref(false);
+				dcell->left_.bitmap_ = scell->left_.bitmap_;
 			}
 
 			/* Processing right ref */
-			if (scell.is_right_ref()) 
+			if (scell->is_right_ref()) 
 			{
-				dcell.set_is_right_ref(true);
-				dcell.right_.ref_ = destination._alloc_cell();
+				dcell->set_is_right_ref(true);
+				dcell->right_.ref_ = destination.alloc_cell();
 
-				sstack[top] = scell.right_.ref_;
-				dstack[top] = dcell.right_.ref_;
+				sstack[top] = scell->right_.ref_;
+				dstack[top] = dcell->right_.ref_;
 				++top;
 			} 
 			else 
 			{
-				dcell.set_is_right_ref(false);
-				dcell.right_.bitmap_ = scell.right_.bitmap_;
+				dcell->set_is_right_ref(false);
+				dcell->right_.bitmap_ = scell->right_.bitmap_;
 			}
 		} while (top > 0);
 	}

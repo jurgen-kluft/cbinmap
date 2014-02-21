@@ -10,10 +10,38 @@
 
 namespace xcore
 {
-	namespace sigv
-	{
-		struct node_t;
+#ifdef TARGET_32BIT
+	typedef		u64			iptr;
+#else
+	typedef		u32			iptr;
+#endif
 
+	namespace sigmap
+	{
+		// sizeof(node_t) == 8 | 16
+		struct node_t
+		{
+			enum echild {LEFT=0, RIGHT=1};
+			inline static echild mirror_child(echild c)			{ return c==LEFT ? RIGHT : LEFT; }
+
+			void			clear()								{ pchild[0]=0; pchild[1]=0; }
+
+			bool			has_node(echild _child) const		{ iptr const p = (iptr)(pchild[_child]); return ((p&1) == 0) && p != 0; }
+			bool			is_node(echild _child) const		{ return ((iptr)(pchild[_child])&1) == 0; }
+			void			set_node(echild _child, node_t* n)	{ ASSERT(n!=NULL); (pchild[_child]) = n; }
+			node_t*			get_node(echild _child) const		{ return (node_t*)(pchild[_child]); }
+			bool			has_sig(echild _child) const		{ return ((iptr)(pchild[_child])&1) == 1; }
+			void			set_sig(echild _child, xbyte* s)	{ ASSERT(s!=NULL); psig[_child] = s + 1; }
+			xbyte*			get_sig(echild _child) const		{ return psig[_child] - 1; }
+
+		protected:
+			union
+			{
+				node_t*		pchild[2];
+				xbyte*		psig[2];
+			};
+		};
+				
 		struct signature_t
 		{
 			inline			signature_t() : digest(0), length(0) {}
@@ -29,7 +57,7 @@ namespace xcore
 		class iallocator
 		{
 		public:
-			virtual void		initialize(u32 _sizeof_node, u32 _sizeof_hash) = 0;
+			virtual void		initialize(u32 _max_num_nodes, u32 _sizeof_node, u32 _max_num_signatures, u32 _sizeof_signature) = 0;
 
 			virtual node_t*		node_allocate() = 0;
 			virtual void		node_deallocate(node_t*) = 0;
@@ -41,7 +69,7 @@ namespace xcore
 
 
 	/**
-	 * @group		xsigv
+	 * @group		xsigmap
 	 * @brief		Signature Map implementation used for content validation
 	 * @URL         Reference -> http://www.merkle.com/‎
 	 * 
@@ -64,56 +92,57 @@ namespace xcore
 	class xsigmap
 	{
 	public:
-						xsigmap(sigv::iallocator* _allocator, sigv::sigcomb_f _sigcombiner);
+						xsigmap(sigmap::iallocator* _allocator, sigmap::sigcomb_f _sigcombiner);
 						~xsigmap();
 
-		void			open(sigv::signature_t const& _rootsig, u32 _max_bins, bool _fold=true);
+		void			open(sigmap::signature_t const& _rootsig, u32 _max_bins, bool _fold=true);
 		void			close();
 
 		bool			verify();
 		bool			valid() const;
 
-		s32				submit(bin_t _bin, sigv::signature_t const& _signature);	// return: 1=added, -1 if this was the last signature of a trusted sub-tree that failed to result in the trusted signature
-		bool			submit_branch(bin_t _bin, sigv::signature_t* const* _branch_signatures);
+		s32				submit(bin_t _bin, sigmap::signature_t const& _signature);	// return: 1=added, -1 if this was the last signature of a trusted sub-tree that failed to result in the trusted signature
+		bool			submit_branch(bin_t _bin, sigmap::signature_t* const* _branch_signatures);
 
-		bool			read_branch(bin_t _bin, sigv::signature_t* _branch_signatures, u32 _max_branch_signatures);
+		bool			read_branch(bin_t _bin, sigmap::signature_t* _branch_signatures, u32 _max_branch_signatures);
 
 	private:
-		sigv::iallocator*	allocator;
-		sigv::sigcomb_f		combiner;
-
 		enum emode { ETRAVERSE_NORMAL, ETRAVERSE_EXPAND };
-		u32				traverse(bin_t _node_bin, sigv::node_t* _node_ptr, bin_t _tofind, sigv::node_t** _stack, u32& _stack_depth, emode _traverse_mode=ETRAVERSE_NORMAL);
+		u32				traverse(bin_t _node_bin, sigmap::node_t* _node_ptr, bin_t _tofind, sigmap::node_t** _stack, u32& _stack_depth, emode _traverse_mode=ETRAVERSE_NORMAL);
 
 		struct stats
 		{
-			inline				stats()				{ reset(); }
+			inline					stats()				{ reset(); }
 
-			void				reset()				{ numNodes=0; maxNodes=0; numSigs=0; maxSigs=0; numCombs=0; }
-			void				incNode()			{ ++numNodes; if (numNodes > maxNodes) maxNodes = numNodes; }
-			void				decNode()			{ --numNodes; }
-			void				incSig()			{ ++numSigs; if (numSigs > maxSigs) maxSigs = numSigs; }
-			void				decSig()			{ --numSigs; }
-			void				incCombs()			{ ++numCombs; }
+			void					reset()				{ numNodes=0; maxNodes=0; numSigs=0; maxSigs=0; numCombs=0; }
+			void					incNode()			{ ++numNodes; if (numNodes > maxNodes) maxNodes = numNodes; }
+			void					decNode()			{ --numNodes; }
+			void					incSig()			{ ++numSigs; if (numSigs > maxSigs) maxSigs = numSigs; }
+			void					decSig()			{ --numSigs; }
+			void					incCombs()			{ ++numCombs; }
 
 		private:
-			u32					numNodes;
-			u32					maxNodes;
-			u32					numSigs;
-			u32					maxSigs;
-			u32					numCombs;
+			u32						numNodes;
+			u32						maxNodes;
+			u32						numSigs;
+			u32						maxSigs;
+			u32						numCombs;
 		};
-		stats				statistics;
 
-		sigv::signature_t	workSig;
+		sigmap::iallocator*		allocator;
+		sigmap::sigcomb_f		combiner;
 
-		bin_t				rootBin;
-		sigv::signature_t	rootSig;
-		sigv::node_t*		rootNode;
-		bool				is_open;
-		bool				do_fold;
-		bool				is_verified;
-		bool				is_valid;
+		stats					statistics;
+
+		sigmap::signature_t		workSig;
+
+		bin_t					rootBin;
+		sigmap::signature_t		rootSig;
+		sigmap::node_t*			rootNode;
+		bool					is_open;
+		bool					do_fold;
+		bool					is_verified;
+		bool					is_valid;
 	};
 
 

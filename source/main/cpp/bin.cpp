@@ -75,7 +75,7 @@ namespace xcore
 			return e;
 		}
 
-		char* append(char* buf, u64 x)
+		char* append(char* buf, bin_t::uint_t x)
 		{
 			char* l = buf;
 			char* r = buf;

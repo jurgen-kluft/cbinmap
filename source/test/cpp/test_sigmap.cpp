@@ -11,50 +11,51 @@ using namespace xcore;
 
 extern xcore::x_iallocator* gTestAllocator;
 
-class my_sigv_allocator : public sigv::iallocator
+class my_sigmap_allocator : public sigmap::iallocator
 {
 	u32		sizeof_node;
 	u32		sizeof_sig;
+
 public:
-	my_sigv_allocator(u32 _sizeof_node, u32 _sizeof_sig)
+	my_sigmap_allocator()
 	{
-		sizeof_node = _sizeof_node;
-		sizeof_sig  = _sizeof_sig;
+		sizeof_node = 0;
+		sizeof_sig  = 0;
 	}
 
-	virtual void			initialize(u32 _sizeof_node, u32 _sizeof_sig)
+	virtual void			initialize(u32 _max_num_nodes, u32 _sizeof_node, u32 _max_num_signatures, u32 _sizeof_signature)
 	{
 		sizeof_node = _sizeof_node;
-		sizeof_sig  = _sizeof_sig;
+		sizeof_sig  = _sizeof_signature;
 	}
 
-	virtual sigv::node_t*	node_allocate()
+	virtual sigmap::node_t*	node_allocate()
 	{
-		sigv::node_t* n = (sigv::node_t*)gTestAllocator->allocate(sizeof_node, 4);
+		sigmap::node_t* n = (sigmap::node_t*)gTestAllocator->allocate(sizeof_node, 4);
 		return n;
 	}
 
-	virtual void			node_deallocate(sigv::node_t* p)
+	virtual void			node_deallocate(sigmap::node_t* p)
 	{
 		gTestAllocator->deallocate(p);
 	}
 
-	virtual sigv::signature_t	sig_allocate()
+	virtual sigmap::signature_t	sig_allocate()
 	{
-		sigv::signature_t s;
+		sigmap::signature_t s;
 		s.length = sizeof_sig;
 		s.digest = (xbyte*)gTestAllocator->allocate(s.length, 4);
 		return s;
 	}
 
-	virtual void			sig_deallocate(sigv::signature_t& s)
+	virtual void			sig_deallocate(sigmap::signature_t& s)
 	{
 		gTestAllocator->deallocate(s.digest);
 		s.digest = 0;
 	}
 };
 
-static void	sSigCombiner(sigv::signature_t const& lhs, sigv::signature_t const& rhs, sigv::signature_t* result)
+static void	sSigCombiner(sigmap::signature_t const& lhs, sigmap::signature_t const& rhs, sigmap::signature_t* result)
 {
 	ASSERT(lhs.length == rhs.length);
 	ASSERT(lhs.length == result->length);
@@ -110,16 +111,17 @@ UNITTEST_SUITE_BEGIN(sigmap)
 
 		UNITTEST_TEST(construct)
 		{
-			my_sigv_allocator a(16, 32);
+			my_sigmap_allocator a;
+			a.initialize(256, sizeof(sigmap::node_t), 256, 32);
 			xsigmap sm(&a, sSigCombiner);
 		}
 
 		UNITTEST_TEST(open_close)
 		{
-			my_sigv_allocator a(16, 32);
+			my_sigmap_allocator a;
 			xsigmap sm(&a, sSigCombiner);
 
-			sigv::signature_t rootSignature = a.sig_allocate();
+			sigmap::signature_t rootSignature = a.sig_allocate();
 			sm.open(rootSignature, 512, true);
 			sm.close();
 			a.sig_deallocate(rootSignature);
@@ -127,19 +129,21 @@ UNITTEST_SUITE_BEGIN(sigmap)
 
 		UNITTEST_TEST(open_submit_close)
 		{
-			my_sigv_allocator a(16, 32);
+			my_sigmap_allocator a;
+			a.initialize(256, sizeof(sigmap::node_t), 256, 32);
+
 			xsigmap sm(&a, sSigCombiner);
 
-			sigv::signature_t rootSignature = a.sig_allocate();
-			sigv::signature_t lhs(&digests[0], rootSignature.length);
-			sigv::signature_t rhs(&digests[1], rootSignature.length);
+			sigmap::signature_t rootSignature = a.sig_allocate();
+			sigmap::signature_t lhs(&digests[0], rootSignature.length);
+			sigmap::signature_t rhs(&digests[1], rootSignature.length);
 			sSigCombiner(lhs, rhs, &rootSignature);
 			sm.open(rootSignature, 2, true);
 
 			// submit two signatures, they will be merged
-			sigv::signature_t signature1(&digests[0], rootSignature.length);
+			sigmap::signature_t signature1(&digests[0], rootSignature.length);
 			CHECK_EQUAL(0, sm.submit(bin_t(0, 0), signature1));
-			sigv::signature_t signature2(&digests[1], rootSignature.length);
+			sigmap::signature_t signature2(&digests[1], rootSignature.length);
 			CHECK_EQUAL(0, sm.submit(bin_t(0, 1), signature2));
 
 			CHECK_TRUE(sm.verify());
@@ -150,15 +154,17 @@ UNITTEST_SUITE_BEGIN(sigmap)
 
 		UNITTEST_TEST(open_submit_all_folding_close)
 		{
-			my_sigv_allocator a(16, 32);
+			my_sigmap_allocator a;
+			a.initialize(256, sizeof(sigmap::node_t), 256, 32);
+
 			xsigmap sm(&a, sSigCombiner);
 
-			sigv::signature_t rootSignature = a.sig_allocate();
+			sigmap::signature_t rootSignature = a.sig_allocate();
 
 			const s32 length = 512;
 			// manually compute the root signature according to the merkle signature scheme
 			xbyte	digests_data[length][32];
-			sigv::signature_t signatures[length];
+			sigmap::signature_t signatures[length];
 			for (s32 i=0; i<length; ++i)
 			{
 				signatures[i].digest = digests_data[i];
@@ -178,7 +184,7 @@ UNITTEST_SUITE_BEGIN(sigmap)
 
 			for (s32 i=0; i<length; ++i)
 			{
-				sigv::signature_t signature1(&digests[i], rootSignature.length);
+				sigmap::signature_t signature1(&digests[i], rootSignature.length);
 				CHECK_EQUAL(0, sm.submit(bin_t(0, i), signature1));
 			}
 
@@ -190,15 +196,17 @@ UNITTEST_SUITE_BEGIN(sigmap)
 
 		UNITTEST_TEST(open_submit_all_nofolding_close)
 		{
-			my_sigv_allocator a(16, 32);
+			my_sigmap_allocator a;
+			a.initialize(256, sizeof(sigmap::node_t), 256, 32);
+
 			xsigmap sm(&a, sSigCombiner);
 
-			sigv::signature_t rootSignature = a.sig_allocate();
+			sigmap::signature_t rootSignature = a.sig_allocate();
 			sm.open(rootSignature, 512, false);
 
 			for (s32 i=0; i<512; ++i)
 			{
-				sigv::signature_t signature1(&digests[i], rootSignature.length);
+				sigmap::signature_t signature1(&digests[i], rootSignature.length);
 				sm.submit(bin_t(0, i), signature1);
 			}
 

@@ -5,43 +5,9 @@
 
 namespace xcore
 {
-	typedef		sigv::signature_t		xsig_t;
-	typedef		sigv::node_t			xnode_t;
-	typedef		sigv::iallocator		xallocator_t;
-	typedef		sigv::sigcomb_f			xsigcomb_f;
-
-#ifdef TARGET_32BIT
-	typedef		u64						iptr;
-#else
-	typedef		u32						iptr;
-#endif
-
-	namespace sigv
-	{
-		// sizeof(node_t) == 8 | 16
-		struct node_t
-		{
-			void			clear()								{ pchild[0]=0; pchild[1]=0; }
-
-			enum echild {LEFT=0, RIGHT=1};
-			inline static echild mirror_child(echild c)			{ return c==LEFT ? RIGHT : LEFT; }
-
-			bool			has_node(echild _child) const		{ iptr const p = (iptr)(pchild[_child]); return ((p&1) == 0) && p != 0; }
-			bool			is_node(echild _child) const		{ return ((iptr)(pchild[_child])&1) == 0; }
-			void			set_node(echild _child, node_t* n)	{ ASSERT(n!=NULL); (pchild[_child]) = n; }
-			node_t*			get_node(echild _child) const		{ return pchild[_child]; }
-			bool			has_sig(echild _child) const		{ return ((iptr)(pchild[_child])&1) == 1; }
-			void			set_sig(echild _child, xbyte* s)	{ ASSERT(s!=NULL); psig[_child] = s + 1; }
-			xbyte*			get_sig(echild _child) const		{ return psig[_child] - 1; }
-
-		private:
-			union
-			{
-				node_t*		pchild[2];
-				xbyte*		psig[2];
-			};
-		};
-	}
+	typedef		  sigmap::signature_t		xsig_t;
+	typedef		  sigmap::iallocator		xallocator_t;
+	typedef		  sigmap::sigcomb_f			xsigcomb_f;
 
 	static inline void copy(xsig_t& _dst, xsig_t const& _src)
 	{
@@ -58,7 +24,7 @@ namespace xcore
 		return dst_sig;
 	}
 
-	static inline void	allocate(xallocator_t* _allocator, xnode_t*& _node)
+	static inline void	allocate(xallocator_t* _allocator, sigmap::node_t*& _node)
 	{
 		_node = _allocator->node_allocate();
 		_node->clear();
@@ -113,7 +79,15 @@ namespace xcore
 		ASSERT(allocator != NULL);
 		ASSERT(combiner != NULL);
 
-		allocator->initialize(sizeof(xnode_t), _rootsig.length);
+		// compute the maximum number of nodes and hashes that this sigmap will need
+		u32 m = ((_max_bins + 1) / 2) * 2 * 2;
+		u32 max_required_nodes = m;
+		while (m != 0)
+		{
+
+		};
+
+		allocator->initialize(max_required_nodes, sizeof(sigmap::node_t), _max_bins, _rootsig.length);
 		workSig = allocator->sig_allocate();
 		statistics.incSig();
 
@@ -131,26 +105,26 @@ namespace xcore
 		{
 			const u32 max_stack_depth = 32;
 			u32 stack_depth = max_stack_depth;
-			xnode_t* stack[max_stack_depth];
+			sigmap::node_t* stack[max_stack_depth];
 
 			// traverse to the far left to start the removal of nodes
 			u32 r = traverse(rootBin, rootNode, bin_t(0,0), stack, stack_depth, ETRAVERSE_NORMAL);
 			while (stack_depth < max_stack_depth)
 			{
 				ASSERT(stack_depth < max_stack_depth);
-				xnode_t* node = stack[stack_depth++];
+				sigmap::node_t* node = stack[stack_depth++];
 
 				// traverse right and then as far left as possible
-				if (node->is_node(xnode_t::RIGHT))
+				if (node->is_node(sigmap::node_t::RIGHT))
 				{
-					if (node->has_node(xnode_t::RIGHT))
+					if (node->has_node(sigmap::node_t::RIGHT))
 					{
-						xnode_t* child = node->get_node(xnode_t::RIGHT);
+						sigmap::node_t* child = node->get_node(sigmap::node_t::RIGHT);
 						ASSERT(stack_depth > 0);
 						stack[--stack_depth] = child;
-						while (child->has_node(xnode_t::LEFT))
+						while (child->has_node(sigmap::node_t::LEFT))
 						{
-							child = child->get_node(xnode_t::LEFT);
+							child = child->get_node(sigmap::node_t::LEFT);
 							ASSERT(stack_depth > 0);
 							stack[--stack_depth] = child;
 						}
@@ -158,10 +132,10 @@ namespace xcore
 				}
 
 				// deallocate the signatures the node has for left and/or right
-				xnode_t::echild children[] = { xnode_t::LEFT, xnode_t::RIGHT };
+				sigmap::node_t::echild children[] = { sigmap::node_t::LEFT, sigmap::node_t::RIGHT };
 				for (u32 i=0; i<2; ++i)
 				{
-					xnode_t::echild c = children[i];
+					sigmap::node_t::echild c = children[i];
 					if (node->has_sig(c))
 					{
 						xsig_t s(node->get_sig(c), rootSig.length);
@@ -190,11 +164,11 @@ namespace xcore
 	{
 		if (is_open && !is_verified)
 		{
-			if (rootNode->has_sig(xnode_t::LEFT) && rootNode->has_sig(xnode_t::RIGHT))
+			if (rootNode->has_sig(sigmap::node_t::LEFT) && rootNode->has_sig(sigmap::node_t::RIGHT))
 			{
 				is_verified = true;
-				xsig_t lhs(rootNode->get_sig(xnode_t::LEFT), rootSig.length);
-				xsig_t rhs(rootNode->get_sig(xnode_t::RIGHT), rootSig.length);
+				xsig_t lhs(rootNode->get_sig(sigmap::node_t::LEFT), rootSig.length);
+				xsig_t rhs(rootNode->get_sig(sigmap::node_t::RIGHT), rootSig.length);
 				combiner(lhs, rhs, &workSig);
 				statistics.incCombs();
 
@@ -221,14 +195,14 @@ namespace xcore
 		// we find it and attach the signature to it as 'trusted'.
 		const u32 max_stack_depth = 32;
 		u32 stack_depth = max_stack_depth;
-		xnode_t* stack[max_stack_depth];
+		sigmap::node_t* stack[max_stack_depth];
 
 		u32 r = traverse(rootBin, rootNode, _bin, stack, stack_depth, ETRAVERSE_EXPAND);
 		if (r > 0)
 		{
 			ASSERT(stack_depth < max_stack_depth);
-			xnode_t* node = stack[stack_depth++];
-			xnode_t::echild const echild = (_bin.is_left()) ? xnode_t::LEFT : xnode_t::RIGHT;
+			sigmap::node_t* node = stack[stack_depth++];
+			sigmap::node_t::echild const echild = (_bin.is_left()) ? sigmap::node_t::LEFT : sigmap::node_t::RIGHT;
 			if (!node->has_sig(echild))
 			{
 				xsig_t child_sig = dup(allocator, _sig);
@@ -239,16 +213,16 @@ namespace xcore
 					// - check if node has 2 signatures
 					// - combine the 2 signatures
 					// - determine if we are the left or right child of our parent
-					// - move up to our parent and set the signature on the apropriate child
+					// - move up to our parent and set the signature on the appropriate child
 					while (_bin.parent() != rootBin)
 					{
 						// See if this node has 2 signatures, if so combine them, remove the node and
 						// set the combined signature on the parent
-						if (!node->has_sig(xnode_t::LEFT) || !node->has_sig(xnode_t::RIGHT))
+						if (!node->has_sig(sigmap::node_t::LEFT) || !node->has_sig(sigmap::node_t::RIGHT))
 							break;
 
-						xsig_t lhs(node->get_sig(xnode_t::LEFT), rootSig.length);
-						xsig_t rhs(node->get_sig(xnode_t::RIGHT), rootSig.length);
+						xsig_t lhs(node->get_sig(sigmap::node_t::LEFT), rootSig.length);
+						xsig_t rhs(node->get_sig(sigmap::node_t::RIGHT), rootSig.length);
 						combiner(lhs, rhs, &lhs);
 						statistics.incCombs();
 
@@ -259,11 +233,11 @@ namespace xcore
 						statistics.decSig();
 
 						ASSERT(stack_depth < max_stack_depth);
-						xnode_t* parent = stack[stack_depth++];
+						sigmap::node_t* parent = stack[stack_depth++];
 						_bin.to_parent();
 
 						// set the signature on the child of the parent that was occupied by child node
-						xnode_t::echild const c = (_bin.is_left()) ? xnode_t::LEFT : xnode_t::RIGHT;
+						sigmap::node_t::echild const c = (_bin.is_left()) ? sigmap::node_t::LEFT : sigmap::node_t::RIGHT;
 						ASSERT(parent->get_node(c) == node);
 						parent->set_sig(c, lhs.digest);
 
@@ -320,7 +294,7 @@ namespace xcore
 
 
 
-	u32				xsigmap::traverse(bin_t _node_bin, xnode_t* _node, bin_t _tofind, xnode_t** _stack, u32& _stack_depth, emode _traverse_mode)
+	u32				xsigmap::traverse(bin_t _node_bin, sigmap::node_t* _node, bin_t _tofind, sigmap::node_t** _stack, u32& _stack_depth, emode _traverse_mode)
 	{
 		s32 const depth = _stack_depth;
 
@@ -328,16 +302,16 @@ namespace xcore
 		_stack[--_stack_depth] = (_node);
 		while (_node_bin != _tofind)
 		{
-			xnode_t::echild _echild = xnode_t::LEFT;
+			sigmap::node_t::echild _echild = sigmap::node_t::LEFT;
 			if (_tofind < _node_bin)
 			{
 				_node_bin.to_left();
-				_echild = xnode_t::LEFT;
+				_echild = sigmap::node_t::LEFT;
 			}
 			else if (_tofind > _node_bin)
 			{
 				_node_bin.to_right();
-				_echild = xnode_t::RIGHT;
+				_echild = sigmap::node_t::RIGHT;
 			}
 
 			if (_node_bin.layer() == 0)
@@ -356,7 +330,7 @@ namespace xcore
 			{
 				if (_traverse_mode == ETRAVERSE_EXPAND)
 				{
-					xnode_t* _node_child_ptr = allocator->node_allocate();
+					sigmap::node_t* _node_child_ptr = allocator->node_allocate();
 					statistics.incNode();
 					_node_child_ptr->clear();
 					_node->set_node(_echild, _node_child_ptr);

@@ -43,14 +43,16 @@ namespace xcore
 	class bin_t 
 	{
 	public:
+		typedef u64		uint_t;
+
 		static const bin_t NONE;
 		static const bin_t ALL;
 
 						bin_t(void);
-		explicit		bin_t(u64 val);
-						bin_t(s32 layer, u64 layer_offset);
+		explicit		bin_t(uint_t val);
+						bin_t(s32 layer, uint_t layer_offset);
 
-		u64				value(void) const;
+		uint_t			value(void) const;
 
 		bool			operator == (const bin_t& bin) const;
 		bool			operator != (const bin_t& bin) const;
@@ -60,14 +62,14 @@ namespace xcore
 		bool			operator >= (const bin_t& bin) const;
 
 		bool			contains(const bin_t& bin) const;
-		void			decompose(s32& layer, u64& layer_offset) const;
+		void			decompose(s32& layer, uint_t& layer_offset) const;
 
-		u64				base_offset(void) const;
-		u64				base_length(void) const;
+		uint_t			base_offset(void) const;
+		uint_t			base_length(void) const;
 
 		s32				layer(void) const;
-		u64				layer_bits(void) const;
-		u64				layer_offset(void) const;
+		uint_t			layer_bits(void) const;
+		uint_t			layer_offset(void) const;
 
 		bool			is_none(void) const;
 		bool			is_all(void) const;
@@ -81,7 +83,7 @@ namespace xcore
 		bin_t&			to_sibling(void);
 		bin_t&			to_base_left(void);
 		bin_t&			to_base_right(void);
-		bin_t&			to_twisted(u64 mask);
+		bin_t&			to_twisted(uint_t mask);
 		bin_t&			to_layer_shifted(s32 zlayer);
 
 		bin_t			parent(void) const;
@@ -90,32 +92,32 @@ namespace xcore
 		bin_t			sibling(void) const;
 		bin_t			base_left(void) const;
 		bin_t			base_right(void) const;
-		bin_t			twisted(u64 mask) const;
+		bin_t			twisted(uint_t mask) const;
 		bin_t			layer_shifted(s32 zlayer) const;
 
 		const char*		str(char* buf) const;
 
 	private:
-		u64				v_;
+		uint_t			v_;
 	};
 
 	inline bin_t::bin_t(void)
 		: v_(bin_t::NONE.v_)
 	{ }
 
-	inline bin_t::bin_t(u64 val)
+	inline bin_t::bin_t(uint_t val)
 		: v_(val)
 	{ }
 
-	inline bin_t::bin_t(s32 layer, u64 offset)
+	inline bin_t::bin_t(s32 layer, uint_t offset)
 	{
-		if (static_cast<s32>(layer) < 8 * sizeof(u64)) 
+		if (static_cast<s32>(layer) < 8 * sizeof(bin_t::uint_t)) 
 			v_ = ((2 * offset + 1) << layer) - 1;
 		else 
-			v_ = static_cast<u64>(-1); // Definition of the NONE bin
+			v_ = static_cast<uint_t>(-1); // Definition of the NONE bin
 	}
 
-	inline u64 bin_t::value(void) const							{ return v_; }
+	inline bin_t::uint_t bin_t::value(void) const						{ return v_; }
 
 	inline bool bin_t::operator == (const bin_t& bin) const		{ return v_ == bin.v_; }
 	inline bool bin_t::operator != (const bin_t& bin) const		{ return v_ != bin.v_; }
@@ -124,30 +126,30 @@ namespace xcore
 	inline bool bin_t::operator <= (const bin_t& bin) const		{ return v_ <= bin.v_; }
 	inline bool bin_t::operator >= (const bin_t& bin) const		{ return v_ >= bin.v_; }
 
-	inline void bin_t::decompose(s32& layer, u64& layer_offset) const
+	inline void bin_t::decompose(s32& layer, uint_t& layer_offset) const
 	{
 		const s32 l = this->layer();
 		layer = l;
 		layer_offset = v_ >> (l + 1);
 	}
 
-	inline u64 bin_t::base_offset(void) const
+	inline bin_t::uint_t bin_t::base_offset(void) const
 	{
 		return (v_ & (v_ + 1)) >> 1;
 	}
 
-	inline u64 bin_t::base_length(void) const
+	inline bin_t::uint_t bin_t::base_length(void) const
 	{
-		u64 const t = ((v_ + 1) & (-1 - v_));
+		bin_t::uint_t const t = ((v_ + 1) & (-1 - v_));
 		return t;
 	}
 
-	inline u64 bin_t::layer_bits(void) const
+	inline bin_t::uint_t bin_t::layer_bits(void) const
 	{
 		return v_ ^ (v_ + 1);
 	}
 
-	inline u64 bin_t::layer_offset(void) const
+	inline bin_t::uint_t bin_t::layer_offset(void) const
 	{
 		return v_ >> (layer() + 1);
 	}
@@ -172,22 +174,22 @@ namespace xcore
 
 	inline bin_t& bin_t::to_parent(void)
 	{
-		const u64 lbs = layer_bits();
-		const u64 nlbs = -2 - lbs; /* ~(lbs + 1) */
+		const bin_t::uint_t lbs = layer_bits();
+		const bin_t::uint_t nlbs = -2 - lbs; /* ~(lbs + 1) */
 		v_ = (v_ | lbs) & nlbs;
 		return *this;
 	}
 
 	inline bin_t& bin_t::to_left(void)
 	{
-		u64 const t = ((v_ + 1) & (-1 - v_)) >> 1;
+		bin_t::uint_t const t = ((v_ + 1) & (-1 - v_)) >> 1;
 		v_ ^= t;
 		return *this;
 	}
 
 	inline bin_t& bin_t::to_right(void)
 	{
-		u64 const t = ((v_ + 1) & (-1 - v_)) >> 1;
+		bin_t::uint_t const t = ((v_ + 1) & (-1 - v_)) >> 1;
 		v_ += t;
 		return *this;
 	}
@@ -212,7 +214,7 @@ namespace xcore
 		return *this;
 	}
 
-	inline bin_t& bin_t::to_twisted(u64 mask)
+	inline bin_t& bin_t::to_twisted(bin_t::uint_t mask)
 	{
 		v_ ^= ((mask << 1) & ~layer_bits());
 		return *this;
@@ -223,26 +225,26 @@ namespace xcore
 		if (layer_bits() >> zlayer) 
 			v_ >>= zlayer;
 		else 
-			v_ = (v_ >> zlayer) & ~static_cast<u64>(1);
+			v_ = (v_ >> zlayer) & ~static_cast<bin_t::uint_t>(1);
 		return *this;
 	}
 
 	inline bin_t bin_t::parent(void) const
 	{
-		const u64 lbs = layer_bits();
-		const u64 nlbs = -2 - lbs; /* ~(lbs + 1) */
+		const bin_t::uint_t lbs = layer_bits();
+		const bin_t::uint_t nlbs = -2 - lbs; /* ~(lbs + 1) */
 		return bin_t((v_ | lbs) & nlbs);
 	}
 
 	inline bin_t bin_t::left(void) const
 	{
-		u64 const t = ((v_ + 1) & (-1 - v_)) >> 1;
+		bin_t::uint_t const t = ((v_ + 1) & (-1 - v_)) >> 1;
 		return bin_t(v_ ^ t);
 	}
 
 	inline bin_t bin_t::right(void) const
 	{
-		u64 const t = ((v_ + 1) & (-1 - v_)) >> 1;
+		bin_t::uint_t const t = ((v_ + 1) & (-1 - v_)) >> 1;
 		return bin_t(v_ + t);
 	}
 
@@ -265,7 +267,7 @@ namespace xcore
 		return bin_t((v_ | (v_ + 1)) - 1);
 	}
 
-	inline bin_t bin_t::twisted(u64 mask) const
+	inline bin_t bin_t::twisted(bin_t::uint_t mask) const
 	{
 		return bin_t( v_ ^ ((mask << 1) & ~layer_bits()) );
 	}
@@ -275,7 +277,7 @@ namespace xcore
 		if (layer_bits() >> zlayer) 
 			return bin_t( v_  >> zlayer );
 		else 
-			return bin_t( (v_ >> zlayer) & ~static_cast<u64>(1) );
+			return bin_t( (v_ >> zlayer) & ~static_cast<bin_t::uint_t>(1) );
 	}
 
 	inline bool bin_t::contains(const bin_t& bin) const
