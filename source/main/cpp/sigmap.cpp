@@ -78,16 +78,7 @@ namespace xcore
 
 		ASSERT(allocator != NULL);
 		ASSERT(combiner != NULL);
-
-		// compute the maximum number of nodes and hashes that this sigmap will need
-		u32 m = ((_max_bins + 1) / 2) * 2 * 2;
-		u32 max_required_nodes = m;
-		while (m != 0)
-		{
-
-		};
-
-		allocator->initialize(max_required_nodes, sizeof(sigmap::node_t), _max_bins, _rootsig.length);
+		
 		workSig = allocator->sig_allocate();
 		statistics.incSig();
 

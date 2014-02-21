@@ -57,8 +57,6 @@ namespace xcore
 		class iallocator
 		{
 		public:
-			virtual void		initialize(u32 _max_num_nodes, u32 _sizeof_node, u32 _max_num_signatures, u32 _sizeof_signature) = 0;
-
 			virtual node_t*		node_allocate() = 0;
 			virtual void		node_deallocate(node_t*) = 0;
 

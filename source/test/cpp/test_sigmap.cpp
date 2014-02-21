@@ -19,8 +19,8 @@ class my_sigmap_allocator : public sigmap::iallocator
 public:
 	my_sigmap_allocator()
 	{
-		sizeof_node = 0;
-		sizeof_sig  = 0;
+		sizeof_node = sizeof(sigmap::node_t);
+		sizeof_sig  = sizeof(hash256);
 	}
 
 	virtual void			initialize(u32 _max_num_nodes, u32 _sizeof_node, u32 _max_num_signatures, u32 _sizeof_signature)
@@ -31,7 +31,7 @@ public:
 
 	virtual sigmap::node_t*	node_allocate()
 	{
-		sigmap::node_t* n = (sigmap::node_t*)gTestAllocator->allocate(sizeof_node, 4);
+		sigmap::node_t* n = (sigmap::node_t*)gTestAllocator->allocate(sizeof_node, sizeof(void*));
 		return n;
 	}
 
@@ -63,7 +63,9 @@ static void	sSigCombiner(sigmap::signature_t const& lhs, sigmap::signature_t con
 	blake256_init(&state);
 	blake256_update(&state, lhs.digest, lhs.length);
 	blake256_update(&state, rhs.digest, rhs.length);
-	blake256_final(&state, result->digest);
+	hash256 hash;
+	blake256_final(&state, hash);
+	x_memcopy(result->digest, hash.hash, result->length);
 };
 
 static xbyte digests[] =

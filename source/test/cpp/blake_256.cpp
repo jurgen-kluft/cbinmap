@@ -204,7 +204,7 @@ namespace xcore
 	}
 
 
-	void blake256_final( state256 *S, uint8_t *out )
+	void blake256_final( state256 *S, hash256& out )
 	{
 		uint8_t msglen[8], zo = 0x01, oo = 0x81;
 		uint32_t lo = S->t[0] + ( S->buflen << 3 ), hi = S->t[1];
@@ -245,18 +245,18 @@ namespace xcore
 
 		S->t[0] -= 64;
 		blake256_update( S, msglen, 8 );
-		U32TO8_BIG( out + 0, S->h[0] );
-		U32TO8_BIG( out + 4, S->h[1] );
-		U32TO8_BIG( out + 8, S->h[2] );
-		U32TO8_BIG( out + 12, S->h[3] );
-		U32TO8_BIG( out + 16, S->h[4] );
-		U32TO8_BIG( out + 20, S->h[5] );
-		U32TO8_BIG( out + 24, S->h[6] );
-		U32TO8_BIG( out + 28, S->h[7] );
+		U32TO8_BIG( &out.hash[ 0], S->h[0] );
+		U32TO8_BIG( &out.hash[ 4], S->h[1] );
+		U32TO8_BIG( &out.hash[ 8], S->h[2] );
+		U32TO8_BIG( &out.hash[12], S->h[3] );
+		U32TO8_BIG( &out.hash[16], S->h[4] );
+		U32TO8_BIG( &out.hash[20], S->h[5] );
+		U32TO8_BIG( &out.hash[24], S->h[6] );
+		U32TO8_BIG( &out.hash[28], S->h[7] );
 	}
 
 
-	void blake256_hash( uint8_t *out, const uint8_t *in, uint64_t inlen )
+	void blake256_hash( hash256& out, const uint8_t *in, uint64_t inlen )
 	{
 		state256 S;
 		blake256_init( &S );
