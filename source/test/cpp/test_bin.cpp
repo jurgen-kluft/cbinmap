@@ -40,6 +40,29 @@ UNITTEST_SUITE_BEGIN(bin)
 			CHECK_EQUAL((1<<17) - 1,bin_t(16,123).layer_bits());
 		}
 
+		UNITTEST_TEST(Base1) 
+		{
+			bin_t b(2,1);
+			s32 o1 = (s32)b.base_offset();
+			b.to_left();
+			b.to_left();
+			CHECK_EQUAL(0, b.layer());
+			CHECK_EQUAL(o1, b.layer_offset());
+		}
+
+		UNITTEST_TEST(Base2) 
+		{
+			bin_t b(5,9);
+			s32 o1 = (s32)b.base_offset();
+			b.to_left(); // 5->4
+			b.to_left(); // 4->3
+			b.to_left(); // 3->2
+			b.to_left(); // 2->1
+			b.to_left(); // 1->0
+			CHECK_EQUAL(0, b.layer());
+			CHECK_EQUAL(o1, b.layer_offset());
+		}
+
 		UNITTEST_TEST(Navigation)
 		{
 			bin_t mid(4,18);

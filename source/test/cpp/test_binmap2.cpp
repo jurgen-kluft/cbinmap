@@ -495,7 +495,7 @@ UNITTEST_SUITE_BEGIN(binmap2)
 			while (hint.is_none() && layer <10)
 			{
 				bin_t curr = bin_t(layer++,0);
-				binmap.fill(offer);
+				binmap.fill();
 				binmap_t::copy(binmap, ack_hint_out, curr);
 				hint = binmap_t::find_complement(binmap, offer, twist);
 				binmap.clear();
@@ -536,7 +536,7 @@ UNITTEST_SUITE_BEGIN(binmap2)
 				if (layer < 10)
 					layer++;
 
-				binmap.fill(offer);
+				binmap.fill();
 				binmap_t::copy(binmap, ack_hint_out, curr);
 				hint = binmap_t::find_complement(binmap, offer, twist);
 
