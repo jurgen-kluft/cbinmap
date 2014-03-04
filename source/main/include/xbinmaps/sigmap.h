@@ -32,7 +32,7 @@ namespace xcore
 
 		// note: @_out can be one of _left or _right, so the combiner needs to make sure that @_out is written to
 		//       after the combined signature is computed.
-		typedef void (*sigcomb_f)(signature_t const& _left, signature_t const& _right, signature_t* _out);
+		typedef void (*sigcomb_f)(signature_t const& _left, signature_t const& _right, signature_t& _out);
 
 		class iallocator
 		{
@@ -122,6 +122,20 @@ namespace xcore
 		bool					is_valid;
 	};
 
+
+	inline s32 xsigmap::get_signature_at(bin_t _bin, sigmap::signature_t& _out_signature) const
+	{
+		// do we contain this bin ?
+		if (!rootBin.contains(_bin))
+			return -2;	// out of range
+
+		u32 const layer  = _bin.layer();
+		u32 const layer_offset = (u32)_bin.layer_offset();
+
+		u32 const signature_offset = layerToOffset[layer] + layer_offset;
+		_out_signature = sigmap::signature_t(signatureDataArray + (signature_offset * rootSig.length), rootSig.length);
+		return 0;
+	}
 
 }
 #endif	// __XSIGV_SIGMAP_H__

@@ -166,9 +166,9 @@ UNITTEST_SUITE_BEGIN(binmap)
 			hole.set(bin_t(4,0));
 			hole.reset(bin_t(1,1));
 			hole.reset(bin_t(0,7));
+
 			bin_t f = hole.find_empty().base_left();
 			CHECK_EQUAL(bin_t(0,2).value(),f.value());
-	
 		}
 
 		UNITTEST_TEST(Alloc) 

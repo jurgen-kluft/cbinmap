@@ -175,12 +175,33 @@ namespace xcore
 	{
 		if (is_open && !is_verified)
 		{
-			//if (treeSigCount == treeNodeCount)
+
+			// @TODO: This is not part of the final implementation
+			s32 max_layer = rootBin.layer()-1;
+			for (s32 l=1; l<max_layer; ++l)
 			{
-				is_verified = true;
-				is_valid = true; 
-				close();
-			}
+				s32 w = layerToWidth[l];
+				for (s32 o=0; o<w; ++o)
+				{
+					xsig_t psig;
+					get_signature_at(bin_t(l, o), psig);
+					xsig_t lsig, rsig;
+					get_signature_at(bin_t(l-1, (2*o)+0), lsig);
+					get_signature_at(bin_t(l-1, (2*o)+1), rsig);
+
+					sigComb(lsig, rsig, psig);
+				}
+			}	
+
+			xsig_t lsig, rsig;
+			get_signature_at(bin_t(max_layer, 0), lsig);
+			get_signature_at(bin_t(max_layer, 1), rsig);
+			sigComb(lsig, rsig, workSig);
+
+			is_verified = true;
+			is_valid = are_signatures_equal(rootSig, workSig);
+
+			close();
 		}
 		return is_valid;
 	}
@@ -196,7 +217,10 @@ namespace xcore
 		if (!rootBin.contains(_bin))
 			return -2;	// out of range
 
+		xsig_t s;
+		get_signature_at(_bin, s);
 		
+		copy(s, _sig);
 
 		return -1;
 	}
@@ -332,20 +356,6 @@ namespace xcore
 		// return the number of signatures to copy in the branch
 		const s32 n = dst - _branch_signatures;
 		return n;
-	}
-
-	s32 xsigmap::get_signature_at(bin_t _bin, xsig_t& _out_signature) const
-	{
-		// do we contain this bin ?
-		if (!rootBin.contains(_bin))
-			return -2;	// out of range
-
-		u32 const layer  = _bin.layer();
-		u32 const layer_offset = (u32)_bin.layer_offset();
-
-		u32 const signature_offset = layerToOffset[layer] + layer_offset;
-		_out_signature = xsig_t(signatureDataArray + signature_offset, rootSig.length);
-		return 0;
 	}
 
 	s32 xsigmap::set_signature_at(bin_t _bin, xsig_t const& _in_signature)

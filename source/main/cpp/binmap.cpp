@@ -13,6 +13,10 @@ namespace xcore
 	binmap_t::binmap_t()
 		: allocator_(0)
 		, binroot_(63)
+		, binmap1_size(0)
+		, binmap1_(0)
+		, binmap0_size(0)
+		, binmap0_(0)
 	{
 
 	}
@@ -23,7 +27,10 @@ namespace xcore
 	*/
 	binmap_t::~binmap_t()
 	{
-		allocator_->deallocate(binmap1_);
+		if (binmap1_ != NULL)
+			allocator_->deallocate(binmap1_);
+		if (binmap0_ != NULL)
+			allocator_->deallocate(binmap0_);
 	}
 
 	/**
@@ -38,9 +45,13 @@ namespace xcore
 				allocator_->deallocate(binmap1_);
 				binmap1_ = NULL;
 			}
+			if (binmap0_ != NULL)
+			{	
+				allocator_->deallocate(binmap0_);
+				binmap0_ = NULL;
+			}
 		}
 
-		ASSERT(_bin.base_length() >= 2);
 		ASSERT(_bin.is_base());
 		allocator_ = _allocator;
 		binmax_ = _bin;
@@ -51,6 +62,7 @@ namespace xcore
 		binroot_ = _bin;
 		while (binroot_.layer_offset() > 0)
 			binroot_.to_parent();
+		ASSERT(binroot_.base_length() >= 2);
 
 		bin_t iter(_bin);
 		s32 const max_layer = binroot_.layer();
@@ -118,8 +130,10 @@ namespace xcore
 	*/
 	bool binmap_t::is_empty(const bin_t& bin) const
 	{
+		if (!binroot_.contains(bin))
+			return false;
 
-		s32 l = bin.layer();
+		s32 const l = bin.layer();
 		if (l == 0)
 		{	// bin
 			bool v = read_value1_at(bin);
@@ -127,21 +141,8 @@ namespace xcore
 		}
 		else
 		{	// range
-			bool const r = read_value0_at(binroot_);
-			if (!r)
-				return true;
-
-			s32 c = (s32)bin.base_length();
-			s32 i = (s32)bin.base_offset();
-			s32 e = i + c + 1;
-			while (i < e)
-			{
-				bool v = read_value1_at(bin_t(0, i));
-				if (v)
-					return false;
-				++i;
-			}
-			return true;
+			bool const r = read_value0_at(bin);
+			return !r;
 		}
 	}
 
@@ -151,6 +152,9 @@ namespace xcore
 	*/
 	bool binmap_t::is_filled(const bin_t& bin) const
 	{
+		if (!binroot_.contains(bin))
+			return false;
+
 		bool v = read_value1_at(bin);
 		return v;
 	}
@@ -192,11 +196,11 @@ namespace xcore
 	*/
 	bin_t binmap_t::find_filled() const
 	{
-		// We can find a filled bin in this sub-tree
-		bin_t i(binroot_);
-		if (read_value0_at(i)==false)
+		// Can we can find a filled bin in this sub-tree?
+		if (read_value0_at(binroot_)==false)
 			return bin_t::NONE;
 
+		bin_t i(binroot_);
 		s32 l = i.layer();
 		while (l > 0)
 		{
@@ -218,38 +222,44 @@ namespace xcore
 	*/
 	bin_t binmap_t::find_empty(bin_t start) const
 	{
-		if (is_filled(binroot_))
-		{	// the binmap is full
+		// does start fall within this binmap?
+		if (!binroot_.contains(start))
+			return bin_t::NONE;
+
+		if (is_filled(start))
+		{	// full, impossible to find an empty bin
 			return bin_t::NONE;
 		}
 
 		// traverse and keep trying to go up until a !filled(bin) is encountered.
 		// when going up check if base_left() is still right or equal to the start bin
 		
-		bin_t i(start);
-		if (i.is_base() && read_value1_at(i) == false)
-			return i;
-
-		i = i.to_right();
-		bin_t const base_left = i.base_left();
-		while (read_value1_at(i) == true)
+		if (start.is_base())
 		{
-			if (i == binroot_)
-			{
-				ASSERTS(false, "error: root of tree is marked as filled, no empty bins available!");
-				break;
-			}
+			if (read_value1_at(start) == false)
+				return start;
+			return bin_t::NONE;
+		}
 
-			// vertical - up
-			bin_t p(i.parent());
-			if (p.base_left() >= base_left)
-			{
-				i = p;
-			}
-			else
-			{
-				// horizontal
-				i = bin_t(i.layer(), i.layer_offset() + 1);
+		bin_t const base_start = start.right().base_left();
+		bin_t i(start);
+		u32 layer = i.layer();
+		while (true)
+		{
+			if (i.base_left() >= base_start && read_value0_at(i) == false)
+				return i.base_left();
+
+			if (read_value1_at(i) == false)
+				break;
+
+			i.to_parent();
+			++layer;
+
+			if (i.base_left() > base_start)
+			{	// traverse horizontally
+				i = bin_t(layer, i.layer_offset() + 1);
+				if (!binroot_.contains(i))
+					return bin_t::NONE;
 			}
 		}
 
@@ -257,9 +267,14 @@ namespace xcore
 		ASSERT (read_value1_at(i) == false);
 
 		// We can find an empty bin in this sub-tree
-		s32 l = i.layer();
-		while (l > 0)
+		while (true)
 		{
+			if (read_value0_at(i)==false)
+				break;
+
+			if (layer == 0)
+				break;
+
 			bin_t c = i.left();
 			if (read_value1_at(c))
 			{
@@ -267,7 +282,7 @@ namespace xcore
 				ASSERT(read_value1_at(c) == false);
 			}
 			i = c;
-			--l;
+			--layer;
 		}
 		return i;
 	}
@@ -306,58 +321,97 @@ namespace xcore
 
 		if (binroot_.contains(bin))
 		{
-			bin_t ib = bin;
-			if (read_value1_at(bin) == false)
+			// check if this action is changing the value to begin with
+			// if not we can do an early-out
+			if (read_value1_at(bin)==false)
 			{				
-				// propagate up
-				bool iv = true;
-				while (true)
+				write_value1_at(bin, true);
+
+				const u32 root_layer = binroot_.layer();
+				const u32 bin_layer  = (root_layer>0) ? bin.layer() : 0;
+
+				// can we propagate up?
+				if (bin_layer < root_layer)
 				{
-					bool const oiv = update_value1_at(ib, iv);
-					if (oiv == iv || ib == binroot_)
-						break;
+					u32 ib_layer = bin_layer;
+					if (ib_layer > 0)
+						write_value0_at(bin, true);
 
-					bin_t const sib = ib.sibling();
-					bool const sv = read_value1_at(sib);
-					iv = (iv && sv);
-					ib.to_parent();
-				};
+					bool iv = true;
+					bin_t ib = bin;
+					while (ib_layer < root_layer)
+					{
+						ib.to_parent();
+						++ib_layer;
+						bool const oiv = update_value0_at(ib, iv);
+						if (oiv == iv)
+							break;
+					};
 
-				// fill everything below this bin
-				if (!bin.is_base())
+					ib_layer = bin_layer;
+					iv = true;
+					ib = bin;
+					while (ib_layer < root_layer)
+					{
+						bin_t const sib = ib.sibling();
+						bool const sv = read_value1_at(sib);
+						iv = (iv && sv);
+						ib.to_parent();
+						++ib_layer;
+
+						bool const oiv = update_value1_at(ib, iv);
+						if (oiv == iv)
+							break;
+					};
+				}
+				else if (bin_layer > 0)	// && bin_layer==root_layer
+				{
+					write_value0_at(bin, true);
+				}
+
+				if (bin_layer > 0)
 				{
 					// clear everything below this bin
 					// iterate down to layer 0
 					// for every layer clear the range of bits
 					bin_t il = bin.left();
 					bin_t ir = bin.right();
-					s32 layer = il.layer();
+					s32 layer = bin_layer - 1;
+
+					xbyte* binmap[2] = { binmap1_, binmap0_ };
 					do 
 					{
 						// determine start, end and length
-						xbyte* lb = binmap1_ + layerToOffset_[layer] + (il.layer_offset() >> 3);
-						xbyte lm = 0xFF >> (il.layer_offset() & 0x07);
+						u32 const lo = (u32)(layerToOffset_[layer] + (il.layer_offset() >> 3));
+						u32 const ro = (u32)(layerToOffset_[layer] + (ir.layer_offset() >> 3));
 
-						xbyte* rb = binmap1_ + layerToOffset_[layer] + (ir.layer_offset() >> 3);
-						xbyte rm = (xbyte)(0xFF80 >> (ir.layer_offset() & 0x07));
+						xbyte const lm = 0xFF >> (il.layer_offset() & 0x07);
+						xbyte const rm = (xbyte)(0xFF80 >> (ir.layer_offset() & 0x07));
 
-						s32 d = rb - lb;
-						if (d == 0)
+						s32 const n = (layer == 0) ? 1 : 2;
+						for (s32 i=0; i<n; ++i)
 						{
-							*lb = *lb | (lm & rm);
-						}
-						else if (d == 1)
-						{
-							*lb = *lb | lm;
-							*rb = *rb | rm;
-						}
-						else
-						{
-							*lb = *lb | lm;
-							++lb;
-							while (lb < rb)
-								*lb++ = 0xff;
-							*rb = *rb | rm;
+							xbyte* lb = binmap[i] + lo;
+							xbyte* rb = binmap[i] + ro;
+
+							s32 const d = rb - lb;
+							if (d == 0)
+							{
+								*lb = *lb | (lm & rm);
+							}
+							else if (d == 1)
+							{
+								*lb = *lb | lm;
+								*rb = *rb | rm;
+							}
+							else
+							{
+								*lb = *lb | lm;
+								++lb;
+								while (lb < rb)
+									*lb++ = 0xff;
+								*rb = *rb | rm;
+							}
 						}
 
 						if (layer == 0)
@@ -386,57 +440,94 @@ namespace xcore
 
 		if (binroot_.contains(bin))
 		{
-			bin_t ib = bin;
-			if (read_value1_at(ib) == true)
+			write_value1_at(bin, false);
+
+			// check if this (sub)tree has any bits set, if not we can do an early-out
+			if (bin.is_base() || read_value0_at(bin)==true)
 			{
-				// propagate up
-				bool iv = false;
-				while (true)
+				const u32 root_layer = binroot_.layer();
+				const u32 bin_layer  = (root_layer>0) ? bin.layer() : 0;
+
+				// can we propagate up?
+				if (bin_layer < root_layer)
 				{
-					bool const oiv = update_value1_at(ib, iv);
-					if (oiv == iv || ib == binroot_)
-						break;
+					u32 ib_layer = bin_layer;
+					if (ib_layer > 0)
+						write_value0_at(bin, false);
 
-					bin_t const sib = ib.sibling();
-					bool const sv = read_value1_at(sib);
-					iv = (iv && sv);
-					ib.to_parent();
-				};
+					bool iv = false;
+					bin_t ib = bin;
+					while (ib_layer < root_layer)
+					{
+						bin_t const sib = ib.sibling();
+						bool const sv = (ib_layer==0) ? read_value1_at(sib) : read_value0_at(sib);
+						iv = (iv || sv);
+						ib.to_parent();
+						++ib_layer;
 
-				if (!bin.is_base())
+						bool const oiv = update_value0_at(ib, iv);
+						if (oiv == iv)
+							break;
+					};
+
+					ib = bin.parent();
+					iv = false;
+					while (true)
+					{
+						bool const oiv = update_value1_at(ib, iv);
+						if (oiv == iv || ib == binroot_)
+							break;
+						ib.to_parent();
+					};
+				}
+				else if (bin_layer > 0)	// && bin_layer==root_layer
+				{
+					write_value0_at(bin, false);
+				}
+
+				if (bin_layer > 0)
 				{
 					// clear everything below this bin
 					// iterate down to layer 0
 					// for every layer clear the range of bits
 					bin_t il = bin.left();
 					bin_t ir = bin.right();
-					s32 layer = il.layer();
+					s32 layer = bin_layer - 1;
+
+					xbyte* binmap[2] = { binmap1_, binmap0_ };
 					do 
 					{
 						// determine start, end and length
-						xbyte* lb = binmap1_ + layerToOffset_[layer] + (il.layer_offset() >> 3);
-						xbyte lm = (xbyte)(0xFF00 >> (il.layer_offset() & 0x07));
+						u32 const lo = (u32)(layerToOffset_[layer] + (il.layer_offset() >> 3));
+						u32 const ro = (u32)(layerToOffset_[layer] + (ir.layer_offset() >> 3));
 
-						xbyte* rb = binmap1_ + layerToOffset_[layer] + (ir.layer_offset() >> 3);
-						xbyte rm = 0x7F >> (ir.layer_offset() & 0x07);
+						xbyte const lm = (xbyte)(0xFF00 >> (il.layer_offset() & 0x07));
+						xbyte const rm = 0x7F >> (ir.layer_offset() & 0x07);
 
-						s32 d = rb - lb;
-						if (d == 0)
+						s32 const n = (layer == 0) ? 1 : 2;
+						for (s32 i=0; i<n; ++i)
 						{
-							*lb = *lb & (lm | rm);
-						}
-						else if (d == 1)
-						{
-							*lb = *lb & lm;
-							*rb = *rb & rm;
-						}
-						else
-						{
-							*lb = *lb & lm;
-							++lb;
-							while (lb < rb)
-								*lb++ = 0;
-							*rb = *rb & rm;
+							xbyte* lb = binmap[i] + lo;
+							xbyte* rb = binmap[i] + ro;
+
+							s32 const d = rb - lb;
+							if (d == 0)
+							{
+								*lb = *lb & (lm | rm);
+							}
+							else if (d == 1)
+							{
+								*lb = *lb & lm;
+								*rb = *rb & rm;
+							}
+							else
+							{
+								*lb = *lb & lm;
+								++lb;
+								while (lb < rb)
+									*lb++ = 0;
+								*rb = *rb & rm;
+							}
 						}
 
 						if (layer == 0)
@@ -486,12 +577,24 @@ namespace xcore
 	void binmap_t::status() const
 	{
 		x_printf("bitmap:\n");
-		for (int i = 0; i < 16; ++i) 
+		s32 l = (s32)binroot_.layer();
+		s32 f = (s32)binroot_.base_length();
+		bin_t li = binroot_;
+		bin_t ri = binroot_;
+		for (int i=l; i>=0; --i) 
 		{
-			for (int j = 0; j < 64; ++j) 
+			s32 w = (s32)(ri.layer_offset() - li.layer_offset());
+			for (int k=0; k<(f+1-w); k+=2)
 			{
-				x_printf("%d", is_filled(bin_t(i * 64 + j)));
+				x_printf("  ");
 			}
+
+			for (int j=0; j<=w; ++j)
+			{
+				x_printf("%d ", is_filled(bin_t(i,j)));
+			}
+			li.to_left();
+			ri.to_right();
 			x_printf("\n");
 		}
 
