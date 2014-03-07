@@ -67,9 +67,9 @@ namespace xcore
 		bin_t			binmax_;
 		bin_t			binroot_;
 		u32				binmap1_size;
-		xbyte*			binmap1_;				// the binmap with bit '0' = empty, bit '1' = full, parent = [left-child] & [right-child]
+		xbyte*			binmap1_;				// the AND binmap with bit '0' = empty, bit '1' = full, parent = [left-child] & [right-child]
 		u32				binmap0_size;
-		xbyte*			binmap0_;				// the binmap with bit '0' = empty, bit '1' = full, parent = [left-child] | [right-child]
+		xbyte*			binmap0_;				// the  OR binmap with bit '0' = empty, bit '1' = full, parent = [left-child] | [right-child]
 		u32				layerToOffset_[32];
 
 		//static void		copy(binmap_t& destination, const pcell_t dref, const binmap_t& source, const pcell_t sref);

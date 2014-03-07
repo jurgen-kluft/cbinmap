@@ -49,17 +49,17 @@ public:
 	}
 };
 
-static void	sSigCombiner(sigmap::signature_t const& lhs, sigmap::signature_t const& rhs, sigmap::signature_t* result)
+static void	sSigCombiner(sigmap::signature_t const& lhs, sigmap::signature_t const& rhs, sigmap::signature_t& result)
 {
 	ASSERT(lhs.length == rhs.length);
-	ASSERT(lhs.length == result->length);
+	ASSERT(lhs.length == result.length);
 	blake256_state state;
 	blake256_init(&state);
 	blake256_update(&state, lhs.digest, lhs.length);
 	blake256_update(&state, rhs.digest, rhs.length);
 	hash256 hash;
 	blake256_final(&state, hash);
-	x_memcopy(result->digest, hash.hash, result->length);
+	x_memcopy(result.digest, hash.hash, result.length);
 };
 
 static xbyte digests[] =
@@ -136,14 +136,14 @@ UNITTEST_SUITE_BEGIN(sigmap)
 
 			sigmap::signature_t lhs(&digests[0], rootSignature.length);
 			sigmap::signature_t rhs(&digests[1], rootSignature.length);
-			sSigCombiner(lhs, rhs, &rootSignature);
+			sSigCombiner(lhs, rhs, rootSignature);
 			sm.open(rootSignature, 2);
 
 			// submit two signatures, they will be merged
 			sigmap::signature_t signature1(&digests[0], rootSignature.length);
-			CHECK_EQUAL(0, sm.submit(bin_t(0, 0), signature1));
+			CHECK_EQUAL(1, sm.submit(bin_t(0, 0), signature1));
 			sigmap::signature_t signature2(&digests[1], rootSignature.length);
-			CHECK_EQUAL(0, sm.submit(bin_t(0, 1), signature2));
+			CHECK_EQUAL(1, sm.submit(bin_t(0, 1), signature2));
 
 			CHECK_TRUE(sm.verify());
 
@@ -175,7 +175,7 @@ UNITTEST_SUITE_BEGIN(sigmap)
 			{
 				for (s32 i=0; i<w; i+=2)
 				{
-					sSigCombiner(signatures[i], signatures[i+1], &signatures[i/2]);
+					sSigCombiner(signatures[i], signatures[i+1], signatures[i/2]);
 				}
 			}
 			// The signature at index 0 is the root signature
@@ -185,7 +185,7 @@ UNITTEST_SUITE_BEGIN(sigmap)
 			for (s32 i=0; i<length; ++i)
 			{
 				sigmap::signature_t signature1(&digests[i], rootSignature.length);
-				CHECK_EQUAL(0, sm.submit(bin_t(0, i), signature1));
+				CHECK_EQUAL(1, sm.submit(bin_t(0, i), signature1));
 			}
 
 			CHECK_TRUE(sm.verify());
@@ -215,6 +215,44 @@ UNITTEST_SUITE_BEGIN(sigmap)
 			a.deallocate(rootSignature);
 		}
 
+		UNITTEST_TEST(open_submitbranch_close)
+		{
+			my_sigmap_allocator a;
+			a.initialize(256, 32);
+
+			xsigmap sm(&a, 32, sSigCombiner);
+
+			sigmap::signature_t rootSignature;
+			a.allocate(rootSignature);
+			sm.open(rootSignature, 8);
+
+			// A branch starts at the root and goes down to the bin at the base level.
+			// The signatures that are emitted along the way are:
+			// 1. The root signature
+			// 2. The signature of the child's sibling
+			// 3. The signature of the designated bin
+			for (s32 i=0; i<8; ++i)
+			{
+				sigmap::signature_t signature1(&digests[i], rootSignature.length);
+				sm.submit(bin_t(0, i), signature1);
+			}
+			CHECK_TRUE(sm.build());
+
+			const s32 max_branch_signatures = 4 + 1;
+			// manually compute the root signature according to the merkle signature scheme
+			xbyte	digests_data[max_branch_signatures][32];
+			sigmap::signature_t branch_signatures[max_branch_signatures];
+			for (s32 i=0; i<max_branch_signatures; ++i)
+			{
+				branch_signatures[i].digest = digests_data[i];
+				branch_signatures[i].length = rootSignature.length;
+			}
+			s32 const branch_len = sm.read_branch(bin_t(0,0), branch_signatures, max_branch_signatures);
+			CHECK_EQUAL(5, branch_len);
+
+			sm.close();
+			a.deallocate(rootSignature);
+		}
 	}
 }
 UNITTEST_SUITE_END

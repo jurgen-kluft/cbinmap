@@ -145,16 +145,45 @@ UNITTEST_SUITE_BEGIN(binmap)
 		UNITTEST_TEST(Hole)
 		{
 			binmap_t hole;
-			hole.init(1 << 9, a);
+			hole.init(bin_t(8,0), a);
 
 			hole.set(bin_t(8,0));
-			hole.reset(bin_t(6,1));
-			hole.reset(bin_t(6,2));
+			CHECK_TRUE(hole.is_filled());
+
 			CHECK_TRUE(hole.is_filled(bin_t(6,0)));
 			CHECK_TRUE(hole.is_filled(bin_t(6,3)));
-			CHECK_FALSE(hole.is_filled(bin_t(8,0)));
+			CHECK_TRUE(hole.is_filled(bin_t(8,0)));
+
+			CHECK_FALSE(hole.is_empty(bin_t(6,0)));
+			CHECK_FALSE(hole.is_empty(bin_t(6,3)));
 			CHECK_FALSE(hole.is_empty(bin_t(8,0)));
-			CHECK_TRUE(hole.is_empty(bin_t(6,1)));
+			CHECK_FALSE(hole.is_empty(bin_t(6,1)));
+
+			hole.reset(bin_t(6,1));
+
+			CHECK_TRUE (hole.is_filled(bin_t(6,0)));
+			CHECK_TRUE (hole.is_filled(bin_t(6,3)));
+			CHECK_FALSE(hole.is_filled(bin_t(8,0)));
+
+			CHECK_TRUE (hole.is_empty(bin_t(6,1)));
+			CHECK_FALSE(hole.is_empty(bin_t(6,0)));
+			CHECK_FALSE(hole.is_empty(bin_t(6,3)));
+			CHECK_FALSE(hole.is_empty(bin_t(8,0)));
+			CHECK_TRUE (hole.is_empty(bin_t(6,1)));
+
+			hole.reset(bin_t(6,2));
+
+			CHECK_TRUE (hole.is_filled(bin_t(6,0)));
+			CHECK_TRUE (hole.is_filled(bin_t(6,3)));
+			CHECK_FALSE(hole.is_filled(bin_t(8,0)));
+
+			CHECK_TRUE (hole.is_empty(bin_t(6,2)));
+			CHECK_FALSE(hole.is_empty(bin_t(6,0)));
+			CHECK_FALSE(hole.is_empty(bin_t(6,3)));
+			CHECK_FALSE(hole.is_empty(bin_t(8,0)));
+			CHECK_TRUE (hole.is_empty(bin_t(6,1)));
+
+
 	
 		}
 
@@ -231,13 +260,14 @@ UNITTEST_SUITE_BEGIN(binmap)
 
 		UNITTEST_TEST(FindFiltered2) 
 		{
+			const s32 n = 1024;
 			binmap_t data, filter;
-			data.init(64, a);
-			filter.init(1 << 16, a);
+			data.init(bin_t(0,n), a);
+			filter.init(bin_t(0,n), a);
 
-			for(int i=0; i<1024; i+=2)
+			for(int i=0; i<n; i+=2)
 				data.set(bin_t(0,i));
-			for(int j=0; j<1024; j+=2)
+			for(int j=0; j<n; j+=2)
 				filter.set(bin_t(0,j));
 			data.reset(bin_t(0,500));
 			CHECK_EQUAL(bin_t(0,500).value(),binmap_t::find_complement(data, filter, bin_t(10,0), 0).base_left().value());
@@ -249,7 +279,7 @@ UNITTEST_SUITE_BEGIN(binmap)
 		{
 			binmap_t data, add;
 			data.init(64, a);
-			add.init(64, a);
+			add.init(4096, a);
 
 			data.set(bin_t(2,0));
 			data.set(bin_t(2,2));
@@ -270,7 +300,7 @@ UNITTEST_SUITE_BEGIN(binmap)
 		UNITTEST_TEST(SeqLength) 
 		{
 			binmap_t b;
-			b.init(64, a);
+			b.init(32, a);
 
 			b.set(bin_t(3,0));
 			b.set(bin_t(1,4));
@@ -313,7 +343,6 @@ UNITTEST_SUITE_BEGIN(binmap)
 			b.set(bin_t(1,2));
 			CHECK_TRUE(b.is_filled(bin_t(2,1)));
 		}
-
 	}
 }
 UNITTEST_SUITE_END

@@ -13,13 +13,14 @@ namespace xcore
 	{
 		static inline bool is_zero(xsig_t const& _src)
 		{
-			for (u32 i=0; i<_src.length; i+=4)
+			u32 const* src = (u32 const*)_src.digest;
+			u32 const* end = (u32 const*)(_src.digest + _src.length);
+			bool is_empty = *src++ == 0;
+			while (is_empty && src<end)
 			{
-				u32 const* s = (u32 const*)(_src.digest + i);
-				if (*s != 0)
-					return false;
+				is_empty = (0 == *src++);
 			}
-			return true;
+			return is_empty;
 		}
 
 		static inline void copy(xsig_t& _dst, xsig_t const& _src)
@@ -27,7 +28,7 @@ namespace xcore
 			ASSERT(_src.length == _dst.length);
 			ASSERT(_src.digest != NULL);
 			ASSERT(_dst.digest != NULL);
-			x_memcopy4((u32*)_dst.digest, (u32*)_src.digest, _src.length / 4);
+			x_memcopy4((u32*)_dst.digest, (u32 const*)_src.digest, _src.length / 4);
 		}
 
 		bool	are_signatures_equal (signature_t const& _a, signature_t const& _b)
@@ -39,12 +40,13 @@ namespace xcore
 			// This is a special case where we assume the signature is aligned on 4 bytes
 			u32 const* lhs = (u32 const*)_a.digest;
 			u32 const* rhs = (u32 const*)_b.digest;
-			for (u32 i=0; i<_a.length; i+=4)
+			u32 const* end = (u32 const*)(_b.digest + _b.length);
+			bool equal = (*lhs++ == *rhs++);
+			while (equal && rhs<end)
 			{
-				if (*lhs++ != *rhs++)
-					return false;
+				equal = (*lhs++ == *rhs++);
 			}
-			return true;
+			return equal;
 		}
 
 		bool	are_signatures_not_equal (signature_t const& _a, signature_t const& _b)
@@ -56,12 +58,13 @@ namespace xcore
 			// This is a special case where we assume the signature is aligned on 4 bytes
 			u32 const* lhs = (u32 const*)_a.digest;
 			u32 const* rhs = (u32 const*)_b.digest;
-			for (u32 i=0; i<_a.length; i+=4)
+			u32 const* end = (u32 const*)(_b.digest + _b.length);
+			bool equal = (*lhs++ == *rhs++);
+			while (equal && rhs<end)
 			{
-				if (*lhs++ == *rhs++)
-					return true;
+				equal = (*lhs++ == *rhs++);
 			}
-			return false;
+			return equal;
 		}
 
 		s32		compare_signatures (const signature_t& _a, const signature_t& _b)
@@ -135,7 +138,7 @@ namespace xcore
 			{
 				u32 const rlayer = iterBin.layer();
 				layerToWidth[rlayer] = 1;
-				layerToOffset[rlayer] = 0;
+				layerToOffset[rlayer] = offset;
 				offset += 1;
 				break;
 			}
@@ -175,10 +178,9 @@ namespace xcore
 	{
 		if (is_open && !is_verified)
 		{
-
 			// @TODO: This is not part of the final implementation
 			s32 max_layer = rootBin.layer()-1;
-			for (s32 l=1; l<max_layer; ++l)
+			for (s32 l=1; l<=max_layer; ++l)
 			{
 				s32 w = layerToWidth[l];
 				for (s32 o=0; o<w; ++o)
@@ -219,10 +221,44 @@ namespace xcore
 
 		xsig_t s;
 		get_signature_at(_bin, s);
-		
 		copy(s, _sig);
 
-		return -1;
+		return 1;
+	}
+
+	/*
+	 Build the signature tree from the base level up until the root
+	*/
+	bool			xsigmap::build()
+	{
+		bool is_complete = true;
+		s32 w = layerToWidth[0];
+		for (s32 o=0; is_complete && o<w; ++o)
+		{
+			xsig_t sig;
+			get_signature_at(bin_t(0, o), sig);
+			is_complete = is_complete || !is_zero(sig);
+		}
+
+		if (!is_complete)
+			return false;
+
+		s32 max_layer = rootBin.layer();
+		for (s32 l=1; l<=max_layer; ++l)
+		{
+			w = layerToWidth[l];
+			for (s32 o=0; o<w; ++o)
+			{
+				xsig_t psig;
+				get_signature_at(bin_t(l, o), psig);
+				xsig_t lsig, rsig;
+				get_signature_at(bin_t(l-1, (2*o)+0), lsig);
+				get_signature_at(bin_t(l-1, (2*o)+1), rsig);
+				sigComb(lsig, rsig, psig);
+			}
+		}
+		is_valid = true;
+		return is_valid;
 	}
 
 	//
@@ -246,7 +282,7 @@ namespace xcore
 		bin_t iter = _bin;
 		while (true)
 		{
-			sigComb(*lhs, *rhs, &workSig);
+			sigComb(*lhs, *rhs, workSig);
 			iter.to_parent();
 			if (iter == rootBin)
 			{
@@ -308,52 +344,39 @@ namespace xcore
 	{
 		// do we contain this bin ?
 		if (!rootBin.contains(_bin))
-			return -2;	// out of range
+			return -1;	// out of range
 
-		bin_t iter = _bin;
+		// is there enough space in the destination to write the full branch?
+		if (_max_branch_signatures <= rootBin.layer())
+			return -2;
 
-		xsig_t base_sig;
-		get_signature_at(iter, base_sig);
-		if (is_zero(base_sig))
+		xsig_t sig;
+		get_signature_at(_bin, sig);
+		if (is_zero(sig))
 			return -3;
-		xsig_t base_sibling_sig;
-		get_signature_at(iter.sibling(), base_sibling_sig);
 
 		sigmap::signature_t* dst = _branch_signatures;
-		if (_max_branch_signatures < 2)
-			return -4;
+		if (_bin != rootBin)
+		{
+			bin_t iter = _bin;
+			if (iter.is_right())
+				iter.to_sibling();
 
-		if (iter.is_left())
-		{
-			copy(*(dst + 0), base_sig);
-			copy(*(dst + 1), base_sibling_sig);
-		}
-		else
-		{
-			copy(*(dst + 1), base_sig);
-			copy(*(dst + 0), base_sibling_sig);
-		}
-		dst = dst + 2;
+			get_signature_at(iter.sibling(), sig);
+			copy(*dst++, sig);
 
-		sigmap::signature_t* end = _branch_signatures + _max_branch_signatures;
-		while (dst < end)
-		{
-			iter.to_parent();
-			if (iter == rootBin)
+			sigmap::signature_t* end = _branch_signatures + _max_branch_signatures;
+			do
 			{
-				copy(*dst, rootSig);
-				break;
-			}
-			else
-			{
-				xsig_t sig(NULL, 32);
-				get_signature_at(iter, sig);
-			
-				copy(*dst, sig);
-				dst += 1;
-			}
+				get_signature_at(iter.sibling(), sig);
+				copy(*dst++, sig);
+				iter.to_parent();
+			} while (iter != rootBin);
 		}
-		// return the number of signatures to copy in the branch
+
+		copy(*dst++, rootSig);
+
+		// return the number of signatures that are part of the branch
 		const s32 n = dst - _branch_signatures;
 		return n;
 	}

@@ -95,6 +95,8 @@ namespace xcore
 		bool			valid() const;
 
 		s32				submit(bin_t _bin, sigmap::signature_t const& _signature);	// return: 1=added, -1 if this was the last signature of a trusted sub-tree that failed to result in the trusted signature
+		bool			build();
+
 		s32				submit_branch(bin_t _bin, sigmap::signature_t const * _branch_signatures);
 		s32				read_branch(bin_t _bin, sigmap::signature_t* _branch_signatures, u32 _max_branch_signatures) const;
 
