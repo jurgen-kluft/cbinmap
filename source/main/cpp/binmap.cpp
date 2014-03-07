@@ -55,34 +55,21 @@ namespace xcore
 
 		allocator_ = _allocator;
 
-		for (s32 i=0; i<32; ++i)
-		{
-			layerToOffset_[i] = 0;
-			layerToBinRange_[i] = bin_t::NONE;
-		}
-
-		binroot_ = _bin;
-		while (binroot_.layer() > 0)
-		{
-			binroot_.to_right();
-			layerToBinRange_[binroot_.layer()] = binroot_;
-		}
-
 		binroot_ = _bin;
 		while (binroot_.layer_offset() > 0)
 		{
-			layerToBinRange_[binroot_.layer()] = binroot_;
 			binroot_.to_parent();
 		}
 		ASSERT(binroot_.base_length() >= 2);
 		maxlayer_ = binroot_.layer();
-		layerToBinRange_[maxlayer_] = binroot_;
 
-		for (s32 i=0; i<=maxlayer_; ++i)
+		bin_t iter(binroot_.base_right());
+		while (iter.layer() <= maxlayer_)
 		{
-			const s32 bits  = ((layerToBinRange_[i].layer_offset() + 1) + 1) & 0xfffffffe;
+			const s32 bits  = ((iter.layer_offset() + 1) + 1) & 0xfffffffe;
 			const s32 bytes = (bits + 7) / 8;
-			layerToOffset_[i] = bytes;
+			layerToOffset_[iter.layer()] = bytes;
+			iter.to_parent();
 		}
 
 		// Remember the size of layer 0 before we convert it to an offset
@@ -322,8 +309,7 @@ namespace xcore
 	{
 		ASSERT(source.binroot_.contains(range));
 		ASSERT(destination.binroot_.contains(range));
-
-		ASSERT(source.layerToBinRange_[0] == destination.layerToBinRange_[0]);
+		ASSERT(source.binroot_ == destination.binroot_);
 
 		// Brute Force
 		s32 const lbo = (s32)(range.base_left().layer_offset());
@@ -789,7 +775,7 @@ namespace xcore
 	*/
 	void binmap_t::copy(binmap_t& destination, const binmap_t& source)
 	{
-		destination.init(source.layerToBinRange_[source.maxlayer_], destination.allocator_);
+		destination.init(source.binroot_, destination.allocator_);
 		x_memcpy(destination.binmap1_, source.binmap1_, destination.binmap1_size);
 		x_memcpy(destination.binmap0_, source.binmap0_, destination.binmap0_size);
 	}

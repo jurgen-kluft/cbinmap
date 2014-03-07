@@ -71,7 +71,6 @@ namespace xcore
 		u32				binmap0_size;
 		xbyte*			binmap0_;				// the  OR binmap with bit '0' = empty, bit '1' = full, parent = [left-child] | [right-child]
 		u32				layerToOffset_[32];
-		bin_t			layerToBinRange_[32];
 
 		//static void		copy(binmap_t& destination, const pcell_t dref, const binmap_t& source, const pcell_t sref);
 		//static void		_copy__range(binmap_t& destination, const binmap_t& source, const pcell_t sref, const bin_t sbin);
