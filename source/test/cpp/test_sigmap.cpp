@@ -11,7 +11,7 @@ using namespace xcore;
 
 extern xcore::x_iallocator* gTestAllocator;
 
-class my_sigmap_allocator : public sigmap::iallocator
+class my_sigmap_allocator : public xsig::jallocator
 {
 	u32		sizeof_sig;
 
@@ -36,30 +36,30 @@ public:
 		gTestAllocator->deallocate(p);
 	}
 
-	virtual void	allocate(sigmap::signature_t& s)
+	virtual void	allocate(xsig::signature_t& s)
 	{
-		s.length = sizeof_sig;
-		s.digest = (xbyte*)gTestAllocator->allocate(s.length, 4);
+		s.length_ = sizeof_sig;
+		s.digest_ = (xbyte*)gTestAllocator->allocate(s.length_, 4);
 	}
 
-	virtual void	deallocate(sigmap::signature_t& s)
+	virtual void	deallocate(xsig::signature_t& s)
 	{
-		gTestAllocator->deallocate(s.digest);
-		s.digest = 0;
+		gTestAllocator->deallocate(s.digest_);
+		s.digest_ = 0;
 	}
 };
 
-static void	sSigCombiner(sigmap::signature_t const& lhs, sigmap::signature_t const& rhs, sigmap::signature_t& result)
+static void	sSigCombiner(xsig::signature_t const& lhs, xsig::signature_t const& rhs, xsig::signature_t& result)
 {
-	ASSERT(lhs.length == rhs.length);
-	ASSERT(lhs.length == result.length);
+	ASSERT(lhs.length_ == rhs.length_);
+	ASSERT(lhs.length_ == result.length_);
 	blake256_state state;
 	blake256_init(&state);
-	blake256_update(&state, lhs.digest, lhs.length);
-	blake256_update(&state, rhs.digest, rhs.length);
+	blake256_update(&state, lhs.digest_, lhs.length_);
+	blake256_update(&state, rhs.digest_, rhs.length_);
 	hash256 hash;
 	blake256_final(&state, hash);
-	x_memcopy(result.digest, hash.hash, result.length);
+	x_memcopy(result.digest_, hash.hash, result.length_);
 };
 
 static xbyte digests[] =
@@ -109,67 +109,65 @@ UNITTEST_SUITE_BEGIN(sigmap)
 		{
 			my_sigmap_allocator a;
 			a.initialize(256 * 2, 32);
-			xsigmap sm(&a, 32, sSigCombiner);
+			xsig::map sm(&a);
 		}
 
 		UNITTEST_TEST(open_close)
 		{
 			my_sigmap_allocator a;
-			xsigmap sm(&a, 32, sSigCombiner);
+			xsig::map sm(&a);
 
-			sigmap::signature_t rootSignature;
+			xsig::signature_t rootSignature;
 			a.allocate(rootSignature);
-			sm.open(rootSignature, 400);
+			sm.open(rootSignature, sSigCombiner, 400);
 			sm.close();
 			a.deallocate(rootSignature);
 		}
 
-		UNITTEST_TEST(open_submit_close)
+		UNITTEST_TEST(builder_open_submit_build_close1)
 		{
 			my_sigmap_allocator a;
 			a.initialize(256, 32);
 
-			xsigmap sm(&a, 32, sSigCombiner);
-
-			sigmap::signature_t rootSignature;
+			xsig::signature_t rootSignature;
 			a.allocate(rootSignature);
 
-			sigmap::signature_t lhs(&digests[0], rootSignature.length);
-			sigmap::signature_t rhs(&digests[1], rootSignature.length);
+			xsig::signature_t lhs(&digests[0], rootSignature.length_);
+			xsig::signature_t rhs(&digests[1], rootSignature.length_);
 			sSigCombiner(lhs, rhs, rootSignature);
-			sm.open(rootSignature, 2);
+
+			xsig::map::builder smb(&a);
+			smb.open(rootSignature, sSigCombiner, 2);
 
 			// submit two signatures, they will be merged
-			sigmap::signature_t signature1(&digests[0], rootSignature.length);
-			CHECK_EQUAL(1, sm.submit(bin_t(0, 0), signature1));
-			sigmap::signature_t signature2(&digests[1], rootSignature.length);
-			CHECK_EQUAL(1, sm.submit(bin_t(0, 1), signature2));
+			xsig::signature_t signature1(&digests[0], rootSignature.length_);
+			CHECK_EQUAL(1, smb.submit(bin_t(0, 0), signature1));
+			xsig::signature_t signature2(&digests[1], rootSignature.length_);
+			CHECK_EQUAL(1, smb.submit(bin_t(0, 1), signature2));
 
-			CHECK_TRUE(sm.verify());
+			CHECK_TRUE(smb.build());
 
-			sm.close();
+			smb.close();
 			a.deallocate(rootSignature);
 		}
 
-		UNITTEST_TEST(open_submit_all_folding_close)
+		UNITTEST_TEST(builder_open_submit_build_close2)
 		{
 			my_sigmap_allocator a;
 			a.initialize(256, 32);
 
-			xsigmap sm(&a, 32, sSigCombiner);
-
-			sigmap::signature_t rootSignature;
+			xsig::signature_t rootSignature;
 			a.allocate(rootSignature);
 
 			const s32 length = 512;
 			// manually compute the root signature according to the merkle signature scheme
 			xbyte	digests_data[length][32];
-			sigmap::signature_t signatures[length];
+			xsig::signature_t signatures[length];
 			for (s32 i=0; i<length; ++i)
 			{
-				signatures[i].digest = digests_data[i];
-				signatures[i].length = rootSignature.length;
-				x_memcopy(signatures[i].digest, &digests[i], rootSignature.length);
+				signatures[i].digest_ = digests_data[i];
+				signatures[i].length_ = rootSignature.length_;
+				x_memcopy(signatures[i].digest_, &digests[i], rootSignature.length_);
 			}
 			for (s32 w=length; w>1; w=w/2)
 			{
@@ -179,39 +177,41 @@ UNITTEST_SUITE_BEGIN(sigmap)
 				}
 			}
 			// The signature at index 0 is the root signature
-			x_memcpy(rootSignature.digest, signatures[0].digest, rootSignature.length);
-			sm.open(rootSignature, length);
+			x_memcpy(rootSignature.digest_, signatures[0].digest_, rootSignature.length_);
+
+			xsig::map::builder smb(&a);
+			smb.open(rootSignature, sSigCombiner, length);
 
 			for (s32 i=0; i<length; ++i)
 			{
-				sigmap::signature_t signature1(&digests[i], rootSignature.length);
-				CHECK_EQUAL(1, sm.submit(bin_t(0, i), signature1));
+				xsig::signature_t signature1(&digests[i], rootSignature.length_);
+				CHECK_EQUAL(1, smb.submit(bin_t(0, i), signature1));
 			}
 
-			CHECK_TRUE(sm.verify());
+			CHECK_TRUE(smb.build());
 
-			sm.close();
+			smb.close();
 			a.deallocate(rootSignature);
 		}
 
-		UNITTEST_TEST(open_submit_all_nofolding_close)
+		UNITTEST_TEST(open_builder_close)
 		{
 			my_sigmap_allocator a;
 			a.initialize(256, 32);
 
-			xsigmap sm(&a, 32, sSigCombiner);
-
-			sigmap::signature_t rootSignature;
+			xsig::signature_t rootSignature;
 			a.allocate(rootSignature);
-			sm.open(rootSignature, 512);
+
+			xsig::map::builder smb(&a);
+			smb.open(rootSignature, sSigCombiner, 512);
 
 			for (s32 i=0; i<512; ++i)
 			{
-				sigmap::signature_t signature1(&digests[i], rootSignature.length);
-				sm.submit(bin_t(0, i), signature1);
+				xsig::signature_t signature1(&digests[i], rootSignature.length_);
+				smb.submit(bin_t(0, i), signature1);
 			}
 
-			sm.close();
+			smb.close();
 			a.deallocate(rootSignature);
 		}
 
@@ -220,11 +220,12 @@ UNITTEST_SUITE_BEGIN(sigmap)
 			my_sigmap_allocator a;
 			a.initialize(256, 32);
 
-			xsigmap sm(&a, 32, sSigCombiner);
 
-			sigmap::signature_t rootSignature;
+			xsig::signature_t rootSignature;
 			a.allocate(rootSignature);
-			sm.open(rootSignature, 8);
+
+			xsig::map::builder smb(&a);
+			smb.open(rootSignature, sSigCombiner, 8);
 
 			// A branch starts at the root and goes down to the bin at the base level.
 			// The signatures that are emitted along the way are:
@@ -233,19 +234,21 @@ UNITTEST_SUITE_BEGIN(sigmap)
 			// 3. The signature of the designated bin
 			for (s32 i=0; i<8; ++i)
 			{
-				sigmap::signature_t signature1(&digests[i], rootSignature.length);
-				sm.submit(bin_t(0, i), signature1);
+				xsig::signature_t signature1(&digests[i], rootSignature.length_);
+				smb.submit(bin_t(0, i), signature1);
 			}
-			CHECK_TRUE(sm.build());
+			CHECK_TRUE(smb.build());
+
+			xsig::map sm(smb);
 
 			const s32 max_branch_signatures = 4 + 1;
 			// manually compute the root signature according to the merkle signature scheme
 			xbyte	digests_data[max_branch_signatures][32];
-			sigmap::signature_t branch_signatures[max_branch_signatures];
+			xsig::signature_t branch_signatures[max_branch_signatures];
 			for (s32 i=0; i<max_branch_signatures; ++i)
 			{
-				branch_signatures[i].digest = digests_data[i];
-				branch_signatures[i].length = rootSignature.length;
+				branch_signatures[i].digest_ = digests_data[i];
+				branch_signatures[i].length_ = rootSignature.length_;
 			}
 			s32 const branch_len = sm.read_branch(bin_t(0,0), branch_signatures, max_branch_signatures);
 			CHECK_EQUAL(5, branch_len);

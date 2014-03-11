@@ -42,53 +42,25 @@ namespace xcore
 		if (allocator_ != NULL)
 		{
 			if (binmap1_ != NULL)
-			{	
 				allocator_->deallocate(binmap1_);
-				binmap1_ = NULL;
-			}
 			if (binmap0_ != NULL)
-			{	
 				allocator_->deallocate(binmap0_);
-				binmap0_ = NULL;
-			}
+
+			binmap1_ = NULL;
+			binmap0_ = NULL;
 		}
 
 		allocator_ = _allocator;
 
 		binroot_ = _bin;
 		while (binroot_.layer_offset() > 0)
-		{
 			binroot_.to_parent();
-		}
 		ASSERT(binroot_.base_length() >= 2);
 		maxlayer_ = binroot_.layer();
 
-		bin_t iter(binroot_.base_right());
-		while (iter.layer() <= maxlayer_)
-		{
-			const s32 bits  = ((iter.layer_offset() + 1) + 1) & 0xfffffffe;
-			const s32 bytes = (bits + 7) / 8;
-			layerToOffset_[iter.layer()] = bytes;
-			iter.to_parent();
-		}
-
-		// Remember the size of layer 0 before we convert it to an offset
-		s32 const baseLayerSize = layerToOffset_[0];
-
-		// Convert the layer sizes to offsets, do this so that layer 0 is 
-		// at the end of the binmap1_ array.
-		// This makes it easier for binmap0_ to not include layer 0.
-		s32 totalSize = 0;
-		for (s32 i=maxlayer_; i>=0; --i)
-		{
-			s32 const layerSize = layerToOffset_[i];
-			layerToOffset_[i] = totalSize;
-			totalSize += layerSize;
-		}
-
-		binmap1_size = totalSize;
+		binmap1_size = ((binroot_.base_length() * 2) + 7) / 8;
 		binmap1_ = (xbyte*)allocator_->allocate(binmap1_size, 8);
-		binmap0_size = binmap1_size - baseLayerSize;
+		binmap0_size = binmap1_size;
 		binmap0_ = (xbyte*)allocator_->allocate(binmap0_size, 8);
 		clear();
 	}
@@ -126,15 +98,14 @@ namespace xcore
 		{
 			if (!binroot_.contains(bin))
 				return false;
-
-			s32 const l = bin.layer();
-			if (l == 0)
-			{	// bin
-				bool v = read_value1_at(bin);
-				return v == false;
+			
+			if (bin.is_base())
+			{
+				bool const r = read_value1_at(bin);
+				return !r;
 			}
 			else
-			{	// range
+			{
 				bool const r = read_value0_at(bin);
 				return !r;
 			}
@@ -232,19 +203,19 @@ namespace xcore
 			return bin_t::NONE;
 		}
 
-		const bin_t bl = start.base_left();
+		const bin_t::uint_t bl = start.value();
 
 		bin_t i(start);
+		u32 layer = i.layer();
 		if (i.is_base())
 		{
-			i = bin_t(i.layer(), i.layer_offset() + 1);			
+			i = bin_t(layer, i.layer_offset() + 1);			
 			if (!binroot_.contains(i))
 				return bin_t::NONE;
 		}
 
 		// traverse and keep trying to go up until a !filled(bin) is encountered.
 		// when going up check if base_left() is still right or equal to the start bin
-		u32 layer = i.layer();
 		if (layer > 0)
 		{
 			do
@@ -396,46 +367,39 @@ namespace xcore
 					// fill everything below this bin
 					// iterate down to layer 1
 					// for every layer fill the range of bits
-					bin_t il = bin.left();
-					bin_t ir = bin.right();
-					u32 ib_layer = bin_layer - 1;
-					do
+					bin_t il = bin.base_left();
+					bin_t ir = bin.base_right();
+
+					// determine start, end and length
+					u32 const lo = (il.value() >> 3);
+					u32 const ro = (ir.value() >> 3);
+
+					xbyte const lm = 0xFF >> (il.value() & 0x07);
+					xbyte const rm = (xbyte)(0xFF80 >> (ir.value() & 0x07));
+
 					{
-						// determine start, end and length
-						u32 const lo = (u32)(layerToOffset_[ib_layer] + (il.layer_offset() >> 3));
-						u32 const ro = (u32)(layerToOffset_[ib_layer] + (ir.layer_offset() >> 3));
+						xbyte* lb = binmap0_ + lo;
+						xbyte* rb = binmap0_ + ro;
 
-						xbyte const lm = 0xFF >> (il.layer_offset() & 0x07);
-						xbyte const rm = (xbyte)(0xFF80 >> (ir.layer_offset() & 0x07));
-
+						s32 const d = ro - lo;
+						if (d == 0)
 						{
-							xbyte* lb = binmap0_ + lo;
-							xbyte* rb = binmap0_ + ro;
-
-							s32 const d = rb - lb;
-							if (d == 0)
-							{
-								*lb = *lb | (lm & rm);
-							}
-							else if (d == 1)
-							{
-								*lb = *lb | lm;
-								*rb = *rb | rm;
-							}
-							else
-							{
-								*lb = *lb | lm;
-								++lb;
-								while (lb < rb)
-									*lb++ = 0xff;
-								*rb = *rb | rm;
-							}
+							*lb = *lb | (lm & rm);
 						}
-
-						il.to_left();
-						ir.to_right();
-						--ib_layer;
-					} while (ib_layer > 0);
+						else if (d == 1)
+						{
+							*lb = *lb | lm;
+							*rb = *rb | rm;
+						}
+						else
+						{
+							*lb = *lb | lm;
+							++lb;
+							while (lb < rb)
+								*lb++ = 0xff;
+							*rb = *rb | rm;
+						}
+					}
 				}
 			}
 
@@ -473,46 +437,38 @@ namespace xcore
 					// fill everything below this bin
 					// iterate down to layer 0
 					// for every layer fill the range of bits
-					bin_t il = bin;
-					bin_t ir = bin;
-					s32 ib_layer = bin_layer;
-					while (ib_layer > 0)
+					bin_t il = bin.base_left();
+					bin_t ir = bin.base_right();
+
+					// determine start, end and length
+					u32 const lo = (u32)(il.value() >> 3);
+					u32 const ro = (u32)(ir.value() >> 3);
+
+					xbyte const lm = 0xFF >> (il.value() & 0x07);
+					xbyte const rm = (xbyte)(0xFF80 >> (ir.value() & 0x07));
+
 					{
-						il.to_left();
-						ir.to_right();
-						--ib_layer;
-
-						// determine start, end and length
-						u32 const io = layerToOffset_[ib_layer];
-						u32 const lo = (u32)(io + (il.layer_offset() >> 3));
-						u32 const ro = (u32)(io + (ir.layer_offset() >> 3));
-
-						xbyte const lm = 0xFF >> (il.layer_offset() & 0x07);
-						xbyte const rm = (xbyte)(0xFF80 >> (ir.layer_offset() & 0x07));
-
+						xbyte* lb = binmap1_ + lo;
+						xbyte* rb = binmap1_ + ro;
+						s32 const d = ro - lo;
+						if (d == 0)
 						{
-							xbyte* lb = binmap1_ + lo;
-							xbyte* rb = binmap1_ + ro;
-							s32 const d = rb - lb;
-							if (d == 0)
-							{
-								*lb = *lb | (lm & rm);
-							}
-							else if (d == 1)
-							{
-								*lb = *lb | lm;
-								*rb = *rb | rm;
-							}
-							else
-							{
-								*lb = *lb | lm;
-								++lb;
-								while (lb < rb)
-									*lb++ = 0xff;
-								*rb = *rb | rm;
-							}
+							*lb = *lb | (lm & rm);
 						}
-					};
+						else if (d == 1)
+						{
+							*lb = *lb | lm;
+							*rb = *rb | rm;
+						}
+						else
+						{
+							*lb = *lb | lm;
+							++lb;
+							while (lb < rb)
+								*lb++ = 0xff;
+							*rb = *rb | rm;
+						}
+					}
 				}
 			}
 		}
@@ -590,47 +546,39 @@ namespace xcore
 					// fill everything below this bin
 					// iterate down to layer 1
 					// for every layer fill the range of bits
-					bin_t il = bin;
-					bin_t ir = bin;
-					ib_layer = bin_layer;
-					do
+					bin_t il = bin.base_left();
+					bin_t ir = bin.base_right();
+
+					// determine start, end and length
+					u32 const llo = (u32)(il.value() >> 3);
+					u32 const lro = (u32)(ir.value() >> 3);
+
+					xbyte const lm = (xbyte)(0xFF00 >> (il.value() & 0x07));
+					xbyte const rm = 0x7F >> (ir.value() & 0x07);
+
 					{
-						il.to_left();
-						ir.to_right();
-						--ib_layer;
+						xbyte* lb = binmap0_ + llo;
+						xbyte* rb = binmap0_ + lro;
 
-						// determine start, end and length
-						u32 const lo  = (u32)(layerToOffset_[ib_layer]);
-						u32 const llo = (u32)(lo + (il.layer_offset() >> 3));
-						u32 const lro = (u32)(lo + (ir.layer_offset() >> 3));
-
-						xbyte const lm = (xbyte)(0xFF00 >> (il.layer_offset() & 0x07));
-						xbyte const rm = 0x7F >> (ir.layer_offset() & 0x07);
-
+						s32 const d = rb - lb;
+						if (d == 0)
 						{
-							xbyte* lb = binmap0_ + llo;
-							xbyte* rb = binmap0_ + lro;
-
-							s32 const d = rb - lb;
-							if (d == 0)
-							{
-								*lb = *lb & (lm | rm);
-							}
-							else if (d == 1)
-							{
-								*lb = *lb & lm;
-								*rb = *rb & rm;
-							}
-							else
-							{
-								*lb = *lb & lm;
-								++lb;
-								while (lb < rb)
-									*lb++ = 0;
-								*rb = *rb & rm;
-							}
+							*lb = *lb & (lm | rm);
 						}
-					} while (ib_layer > 1);
+						else if (d == 1)
+						{
+							*lb = *lb & lm;
+							*rb = *rb & rm;
+						}
+						else
+						{
+							*lb = *lb & lm;
+							++lb;
+							while (lb < rb)
+								*lb++ = 0;
+							*rb = *rb & rm;
+						}
+					}
 				}
 			}
 
@@ -665,46 +613,38 @@ namespace xcore
 					// fill everything below this bin
 					// iterate down to layer 0
 					// for every layer fill the range of bits
-					bin_t il = bin;
-					bin_t ir = bin;
-					s32 ib_layer = bin_layer;
-					do
+					bin_t il = bin.base_left();
+					bin_t ir = bin.base_right();
+
+					// determine start, end and length
+					u32 const llo = (u32)(il.value() >> 3);
+					u32 const lro = (u32)(ir.value() >> 3);
+
+					xbyte const lm = (xbyte)(0xFF00 >> (il.value() & 0x07));
+					xbyte const rm = 0x7F >> (ir.value() & 0x07);
+
 					{
-						il.to_left();
-						ir.to_right();
-						--ib_layer;
-
-						// determine start, end and length
-						u32 const lo = layerToOffset_[ib_layer];
-						u32 const llo = (u32)(lo + (il.layer_offset() >> 3));
-						u32 const lro = (u32)(lo + (ir.layer_offset() >> 3));
-
-						xbyte const lm = (xbyte)(0xFF00 >> (il.layer_offset() & 0x07));
-						xbyte const rm = 0x7F >> (ir.layer_offset() & 0x07);
-
+						xbyte* lb = binmap1_ + llo;
+						xbyte* rb = binmap1_ + lro;
+						s32 const d = rb - lb;
+						if (d == 0)
 						{
-							xbyte* lb = binmap1_ + llo;
-							xbyte* rb = binmap1_ + lro;
-							s32 const d = rb - lb;
-							if (d == 0)
-							{
-								*lb = *lb & (lm | rm);
-							}
-							else if (d == 1)
-							{
-								*lb = *lb & lm;
-								*rb = *rb & rm;
-							}
-							else
-							{
-								*lb = *lb & lm;
-								++lb;
-								while (lb < rb)
-									*lb++ = 0;
-								*rb = *rb & rm;
-							}
+							*lb = *lb & (lm | rm);
 						}
-					} while (ib_layer > 0);
+						else if (d == 1)
+						{
+							*lb = *lb & lm;
+							*rb = *rb & rm;
+						}
+						else
+						{
+							*lb = *lb & lm;
+							++lb;
+							while (lb < rb)
+								*lb++ = 0;
+							*rb = *rb & rm;
+						}
+					}
 				}
 			}
 		}

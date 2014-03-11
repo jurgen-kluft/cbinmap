@@ -1,6 +1,7 @@
 #ifndef __XBINMAPS_BIN_H__
 #define __XBINMAPS_BIN_H__
 #include "xbase/x_target.h"
+#include "xbase/x_debug.h"
 
 namespace xcore
 {
@@ -117,7 +118,7 @@ namespace xcore
 			v_ = static_cast<uint_t>(-1); // Definition of the NONE bin
 	}
 
-	inline bin_t::uint_t bin_t::value(void) const						{ return v_; }
+	inline bin_t::uint_t bin_t::value(void) const				{ return v_; }
 
 	inline bool bin_t::operator == (const bin_t& bin) const		{ return v_ == bin.v_; }
 	inline bool bin_t::operator != (const bin_t& bin) const		{ return v_ != bin.v_; }

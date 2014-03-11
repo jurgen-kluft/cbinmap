@@ -67,7 +67,6 @@ UNITTEST_SUITE_BEGIN(binmap)
 			CHECK_TRUE(bs.is_filled(bin_t(2,0)));
 		}
 
-		/*
 		UNITTEST_TEST(Clear) 
 		{
 			binmap_t m;
@@ -84,9 +83,10 @@ UNITTEST_SUITE_BEGIN(binmap)
 					m.reset(bin_t(0,i));
 				}
 			}
+			CHECK_FALSE(m.is_empty());
 			m.clear();
+			CHECK_TRUE(m.is_empty());
 		}
-		*/
 
 		UNITTEST_TEST(Chess) 
 		{

@@ -103,9 +103,9 @@ namespace xcore
 	*/
 	inline bool	binmap_t::read_value1_at(bin_t _bin) const
 	{
-		u32 const offset = (u32)_bin.layer_offset();
-		xbyte const* byte = binmap1_ + layerToOffset_[_bin.layer()] + (offset >> 3);
-		xbyte const bit = 0x80 >> (offset & 0x07);
+		ASSERT(binroot_.contains(_bin));
+		xbyte const* byte = binmap1_ + (_bin.value() >> 3);
+		xbyte const  bit  = 0x80 >> (_bin.value() & 0x07);
 		return (*byte & bit) == bit;
 	}
 
@@ -114,9 +114,9 @@ namespace xcore
 	*/
 	inline s32 binmap_t::write_value1_at(bin_t _bin, bool _in_value)
 	{
-		u32 const offset = (u32)_bin.layer_offset();
-		xbyte* byte = binmap1_ + layerToOffset_[_bin.layer()] + (offset >> 3);
-		xbyte const bit = 0x80 >> (offset & 0x07);
+		ASSERT(binroot_.contains(_bin));
+		xbyte     * byte = binmap1_ + (_bin.value() >> 3);
+		xbyte const bit  = 0x80 >> (_bin.value() & 0x07);
 		if (_in_value) *byte = *byte | bit;
 		else *byte = *byte & ~bit;
 		return 0;
@@ -127,9 +127,9 @@ namespace xcore
 	*/
 	inline bool binmap_t::update_value1_at(bin_t _bin, bool _in_value)
 	{
-		u32 const offset = (u32)_bin.layer_offset();
-		xbyte* byte = binmap1_ + layerToOffset_[_bin.layer()] + (offset >> 3);
-		xbyte const bit = 0x80 >> (offset & 0x07);
+		ASSERT(binroot_.contains(_bin));
+		xbyte     * byte = binmap1_ + (_bin.value() >> 3);
+		xbyte const bit  = 0x80 >> (_bin.value() & 0x07);
 		bool old_value = (*byte & bit) != 0;
 		if (_in_value) *byte = *byte | bit;
 		else *byte = *byte & ~bit;
@@ -141,10 +141,10 @@ namespace xcore
 	*/
 	inline bool	binmap_t::read_value0_at(bin_t _bin) const
 	{
+		ASSERT(binroot_.contains(_bin));
 		ASSERT(!_bin.is_base());
-		u32 const offset = (u32)_bin.layer_offset();
-		xbyte const* byte = binmap0_ + layerToOffset_[_bin.layer()] + (offset >> 3);
-		xbyte const bit = 0x80 >> (offset & 0x07);
+		xbyte const* byte = binmap0_ + (_bin.value() >> 3);
+		xbyte const  bit  = 0x80 >> (_bin.value() & 0x07);
 		return (*byte & bit) == bit;
 	}
 
@@ -153,10 +153,10 @@ namespace xcore
 	*/
 	inline s32 binmap_t::write_value0_at(bin_t _bin, bool _in_value)
 	{
+		ASSERT(binroot_.contains(_bin));
 		ASSERT(!_bin.is_base());
-		u32 const offset = (u32)_bin.layer_offset();
-		xbyte* byte = binmap0_ + layerToOffset_[_bin.layer()] + (offset >> 3);
-		xbyte const bit = 0x80 >> (offset & 0x07);
+		xbyte     * byte = binmap0_ + (_bin.value() >> 3);
+		xbyte const bit  = 0x80 >> (_bin.value() & 0x07);
 		if (_in_value) *byte = *byte | bit;
 		else *byte = *byte & ~bit;
 		return 0;
@@ -167,10 +167,10 @@ namespace xcore
 	*/
 	inline bool binmap_t::update_value0_at(bin_t _bin, bool _in_value)
 	{
+		ASSERT(binroot_.contains(_bin));
 		ASSERT(!_bin.is_base());
-		u32 const offset = (u32)_bin.layer_offset();
-		xbyte* byte = binmap0_ + layerToOffset_[_bin.layer()] + (offset >> 3);
-		xbyte const bit = 0x80 >> (offset & 0x07);
+		xbyte     * byte = binmap0_ + (_bin.value() >> 3);
+		xbyte const bit  = 0x80 >> (_bin.value() & 0x07);
 		bool old_value = (*byte & bit) != 0;
 		if (_in_value) *byte = *byte | bit;
 		else *byte = *byte & ~bit;
