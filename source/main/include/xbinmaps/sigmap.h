@@ -138,7 +138,7 @@ namespace xcore
 			if (!root_bin_.contains(_bin))
 				return -2;	// out of range
 
-			_out_signature = signature_t(signature_data_array_ + _bin.value(), root_signature_.length_);
+			_out_signature = signature_t(signature_data_array_ + (_bin.value() * root_signature_.length_), root_signature_.length_);
 			return 0;
 		}
 

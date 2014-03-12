@@ -10,7 +10,7 @@ UNITTEST_SUITE_LIST(xBinmapUnitTest);
 UNITTEST_SUITE_DECLARE(xBinmapUnitTest, bin);
 UNITTEST_SUITE_DECLARE(xBinmapUnitTest, binmap);
 UNITTEST_SUITE_DECLARE(xBinmapUnitTest, binmap2);
-//UNITTEST_SUITE_DECLARE(xBinmapUnitTest, sigmap);
+UNITTEST_SUITE_DECLARE(xBinmapUnitTest, sigmap);
 
 namespace xcore
 {

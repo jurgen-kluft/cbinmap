@@ -111,7 +111,12 @@ namespace xcore
 
 		void			map::close()
 		{
-			imp_->close();
+			if (imp_!=NULL)
+			{
+				imp_->close();
+				allocator_->deallocate(imp_);
+				imp_ = NULL;
+			}
 		}
 
 		s32				map::submit_branch(bin_t _bin, signature_t const * _branch_signatures)
@@ -129,8 +134,12 @@ namespace xcore
 		{
 			allocator_ = _allocator;
 			combine_f_ = _sig_combiner;
-			signature_data_array_ = 0;
 			state_ = EMPTY;
+			root_signature_ = signature_t();
+			work_signature_ = signature_t();
+			root_bin_ = bin_t::NONE;
+			root_layer = 0;
+			signature_data_array_ = 0;
 		}
 
 		void map::imp::exit()
@@ -139,7 +148,9 @@ namespace xcore
 			{
 				allocator_->deallocate(signature_data_array_);
 				signature_data_array_ = NULL;
+				root_signature_ = signature_t();
 			}
+
 			if (work_signature_.digest_!=NULL)
 			{
 				allocator_->deallocate(work_signature_);
@@ -154,7 +165,7 @@ namespace xcore
 
 		void			map::imp::open(signature_t const& _root_signature_, u32 _count)
 		{
-			close();
+			ASSERT(state_ == EMPTY || state_ == CLOSED);
 
 			state_ = OPEN;
 
@@ -167,7 +178,7 @@ namespace xcore
 			ASSERT(allocator_ != NULL);
 			ASSERT(combine_f_ != NULL);
 
-			u32 const size = (u32)((root_bin_.base_length() + 7) / 8);
+			u32 const size = (u32)((root_bin_.base_length() * 2) - 1) * _root_signature_.length_;
 
 			count_signature_ = _count;
 			submit_signature_ = 0;
@@ -185,7 +196,7 @@ namespace xcore
 		void			map::imp::close()
 		{
 			// Traverse the tree and deallocate nodes, leafs and hashes
-			if (state_ == OPEN)
+			if (state_ == OPEN || state_ == FINAL)
 			{
 				exit();
 				state_ = CLOSED;
@@ -206,7 +217,7 @@ namespace xcore
 
 		void			map::builder::open(signature_t const& _rootsig, combine_f _sigcombiner, u32 _count)
 		{
-			ASSERT(imp_ != NULL);
+			ASSERT(imp_ == NULL);
 			imp_ = (imp*)allocator_->allocate(sizeof(imp), sizeof(void*));
 			imp_->init(allocator_, _sigcombiner);
 			imp_->open(_rootsig, _count);
@@ -217,6 +228,8 @@ namespace xcore
 			if (imp_!=NULL)
 			{
 				imp_->close();
+				allocator_->deallocate(imp_);
+				imp_ = NULL;
 			}
 		}
 
@@ -251,7 +264,7 @@ namespace xcore
 				return false;
 
 			bin_t ib(imp_->root_bin_.base_right());
-			u32 layer = 1;
+			u32 layer = 0;
 			while (ib != imp_->root_bin_)
 			{
 				++layer;
