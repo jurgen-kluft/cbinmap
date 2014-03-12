@@ -113,7 +113,8 @@ UNITTEST_SUITE_BEGIN(binmap2)
 			//fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
 
 			bin_t x = binmap_t::find_complement(data, filter, s, 0);
-			CHECK_EQUAL_BIN_T(bin_t(0,12),x);
+			bin_t y = bin_t(1,6);
+			CHECK_EQUAL_BIN_T(y,x);
 		}
 
 
@@ -142,8 +143,8 @@ UNITTEST_SUITE_BEGIN(binmap2)
 		UNITTEST_TEST(FindFiltered3) 
 		{
 			binmap_t data, filter;
-			data.init(64, a);
-			filter.init(64, a);
+			data.init(1024, a);
+			filter.init(1024, a);
 
 			for(int i=0; i<1024; i+=2)
 				data.set(bin_t(0,i));
@@ -160,8 +161,8 @@ UNITTEST_SUITE_BEGIN(binmap2)
 		UNITTEST_TEST(FindFiltered4) 
 		{
 			binmap_t data, filter;
-			data.init(64, a);
-			filter.init(64, a);
+			data.init(2048, a);
+			filter.init(2048, a);
 
 			for(int i=0; i<1036; i+=2)
 				data.set(bin_t(0,i));
@@ -178,8 +179,8 @@ UNITTEST_SUITE_BEGIN(binmap2)
 		UNITTEST_TEST(FindFiltered5)
 		{
 			binmap_t data, filter;
-			data.init(64, a);
-			filter.init(64, a);
+			data.init(2048, a);
+			filter.init(2048, a);
 
 			for(int i=0; i<1036; i++) //completely full
 				data.set(bin_t(0,i));
@@ -189,7 +190,11 @@ UNITTEST_SUITE_BEGIN(binmap2)
 			for (int j=496; j<=503; j++)
 				data.reset(bin_t(0,j));
 
-			CHECK_EQUAL_BIN_T(bin_t(3,62),binmap_t::find_complement(data, filter, bin_t(9,0), 0) );
+			bin_t x = binmap_t::find_complement(data, filter, bin_t(9,0), 0);
+			bin_t y = bin_t(3,62);
+			CHECK_EQUAL(y.layer(),x.layer());
+			CHECK_EQUAL(y.layer_offset(),x.layer_offset());
+
 			CHECK_EQUAL_BIN_T(bin_t(0,496),binmap_t::find_complement(data, filter, bin_t(9,0), 0).base_left());
 		}
 

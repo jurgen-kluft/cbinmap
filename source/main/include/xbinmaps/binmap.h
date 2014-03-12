@@ -142,7 +142,6 @@ namespace xcore
 	inline bool	binmap_t::read_value0_at(bin_t _bin) const
 	{
 		ASSERT(binroot_.contains(_bin));
-		ASSERT(!_bin.is_base());
 		xbyte const* byte = binmap0_ + (_bin.value() >> 3);
 		xbyte const  bit  = 0x80 >> (_bin.value() & 0x07);
 		return (*byte & bit) == bit;
@@ -154,7 +153,6 @@ namespace xcore
 	inline s32 binmap_t::write_value0_at(bin_t _bin, bool _in_value)
 	{
 		ASSERT(binroot_.contains(_bin));
-		ASSERT(!_bin.is_base());
 		xbyte     * byte = binmap0_ + (_bin.value() >> 3);
 		xbyte const bit  = 0x80 >> (_bin.value() & 0x07);
 		if (_in_value) *byte = *byte | bit;
@@ -168,7 +166,6 @@ namespace xcore
 	inline bool binmap_t::update_value0_at(bin_t _bin, bool _in_value)
 	{
 		ASSERT(binroot_.contains(_bin));
-		ASSERT(!_bin.is_base());
 		xbyte     * byte = binmap0_ + (_bin.value() >> 3);
 		xbyte const bit  = 0x80 >> (_bin.value() & 0x07);
 		bool old_value = (*byte & bit) != 0;
