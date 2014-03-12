@@ -182,9 +182,6 @@ UNITTEST_SUITE_BEGIN(binmap)
 			CHECK_FALSE(hole.is_empty(bin_t(6,3)));
 			CHECK_FALSE(hole.is_empty(bin_t(8,0)));
 			CHECK_TRUE (hole.is_empty(bin_t(6,1)));
-
-
-	
 		}
 
 		UNITTEST_TEST(Find)

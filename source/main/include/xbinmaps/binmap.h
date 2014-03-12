@@ -62,24 +62,13 @@ namespace xcore
 		s32				write_value0_at(bin_t, bool);
 		bool			update_value0_at(bin_t, bool);
 
+		void			exit();
+
 		allocator*		allocator_;
 
 		bin_t			binroot_;
-		u32				maxlayer_;
-		u32				binmap1_size;
 		xbyte*			binmap1_;				// the AND binmap with bit '0' = empty, bit '1' = full, parent = [left-child] & [right-child]
-		u32				binmap0_size;
 		xbyte*			binmap0_;				// the  OR binmap with bit '0' = empty, bit '1' = full, parent = [left-child] | [right-child]
-		u32				layerToOffset_[32];
-
-		//static void		copy(binmap_t& destination, const pcell_t dref, const binmap_t& source, const pcell_t sref);
-		//static void		_copy__range(binmap_t& destination, const binmap_t& source, const pcell_t sref, const bin_t sbin);
-
-		// Find first additional bin in source
-		//static bin_t	_find_complement(const bin_t& bin, const pcell_t dref, const binmap_t& destination, const pcell_t sref, const binmap_t& source, const u64 twist);
-		//static bin_t	_find_complement(const bin_t& bin, const bitmap_t dbitmap, const pcell_t sref, const binmap_t& source, const u64 twist);
-		//static bin_t	_find_complement(const bin_t& bin, const pcell_t dref, const binmap_t& destination, const bitmap_t sbitmap, const u64 twist);
-		//static bin_t	_find_complement(const bin_t& bin, const bitmap_t dbitmap, const bitmap_t sbitmap, const bin_t::uint_t twist);
 
 		binmap_t&		operator = (const binmap_t&);
 						binmap_t(const binmap_t&);

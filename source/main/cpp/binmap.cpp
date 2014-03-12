@@ -12,11 +12,8 @@ namespace xcore
 	*/
 	binmap_t::binmap_t()
 		: allocator_(0)
-		, binroot_(63)
-		, maxlayer_(0)
-		, binmap1_size(0)
+		, binroot_(bin_t::NONE)
 		, binmap1_(0)
-		, binmap0_size(0)
 		, binmap0_(0)
 	{
 
@@ -28,41 +25,49 @@ namespace xcore
 	*/
 	binmap_t::~binmap_t()
 	{
-		if (binmap1_ != NULL)
-			allocator_->deallocate(binmap1_);
-		if (binmap0_ != NULL)
-			allocator_->deallocate(binmap0_);
+		exit();
 	}
 
 	/**
-	* Allocates one cell (dirty allocation)
+	* Initialization of a binmap
 	*/
 	void binmap_t::init(const bin_t& _bin, allocator* _allocator)
 	{
-		if (allocator_ != NULL)
-		{
-			if (binmap1_ != NULL)
-				allocator_->deallocate(binmap1_);
-			if (binmap0_ != NULL)
-				allocator_->deallocate(binmap0_);
-
-			binmap1_ = NULL;
-			binmap0_ = NULL;
-		}
-
-		allocator_ = _allocator;
+		ASSERT(allocator_ == NULL);
+		ASSERT(binmap1_ == NULL);
+		ASSERT(binmap0_ == NULL);
 
 		binroot_ = _bin;
 		while (binroot_.layer_offset() > 0)
 			binroot_.to_parent();
 		ASSERT(binroot_.base_length() >= 2);
-		maxlayer_ = binroot_.layer();
 
-		binmap1_size = ((binroot_.base_length() * 2) + 7) / 8;
-		binmap1_ = (xbyte*)allocator_->allocate(binmap1_size, 8);
-		binmap0_size = binmap1_size;
-		binmap0_ = (xbyte*)allocator_->allocate(binmap0_size, 8);
+		u32 const binmap_size = (u32)(((binroot_.base_length() * 2) + 7) / 8);
+
+		allocator_ = _allocator;
+		binmap1_ = (xbyte*)_allocator->allocate(binmap_size * 2, 8);
+		binmap0_ = binmap1_ + binmap_size;
 		clear();
+	}
+
+	/**
+	* Uninitialize a binmap
+	*/
+	void binmap_t::exit()
+	{
+		if (allocator_ != NULL)
+		{
+			// binmap0_ is part of binmap1_, so we do not need
+			// to deallocate binmap0_.
+			if (binmap1_ != NULL)
+				allocator_->deallocate(binmap1_);
+		}
+		allocator_ = NULL;
+
+		binmap1_ = NULL;
+		binmap0_ = NULL;
+
+		binroot_ = bin_t::NONE;
 	}
 
 	/**
@@ -341,8 +346,8 @@ namespace xcore
 					bin_t ir = bin.base_right();
 
 					// determine start, end and length
-					u32 const lo = (il.value() >> 3);
-					u32 const ro = (ir.value() >> 3);
+					u32 const lo = (u32)(il.value() >> 3);
+					u32 const ro = (u32)(ir.value() >> 3);
 
 					xbyte const lm = 0xFF >> (il.value() & 0x07);
 					xbyte const rm = (xbyte)(0xFF80 >> (ir.value() & 0x07));
@@ -524,7 +529,7 @@ namespace xcore
 				if (update_value1_at(bin, false))
 				{
 					bin_t ib = bin;
-					s32 ib_layer = bin_layer;
+					u32 ib_layer = bin_layer;
 					while (ib_layer < root_layer)
 					{
 						ib.to_parent();
@@ -581,8 +586,9 @@ namespace xcore
 	*/
 	void binmap_t::clear()
 	{
-		x_memzero(binmap1_, binmap1_size);
-		x_memzero(binmap0_, binmap0_size);
+		u32 const binmap_size = (u32)(((binroot_.base_length() * 2) + 7) / 8);
+		x_memzero(binmap1_, binmap_size);
+		x_memzero(binmap0_, binmap_size);
 	}
 
 
@@ -591,8 +597,9 @@ namespace xcore
 	*/
 	void binmap_t::fill()
 	{
-		x_memset(binmap1_, 0xffffffff, binmap1_size);
-		x_memset(binmap0_, 0xffffffff, binmap0_size);
+		u32 const binmap_size = (u32)(((binroot_.base_length() * 2) + 7) / 8);
+		x_memset(binmap1_, 0xffffffff, binmap_size);
+		x_memset(binmap0_, 0xffffffff, binmap_size);
 	}
 
 	/**
@@ -600,7 +607,8 @@ namespace xcore
 	*/
 	size_t binmap_t::total_size() const
 	{
-		return sizeof(binmap_t) + binmap1_size + binmap0_size;
+		u32 const binmap_size = (u32)(((binroot_.base_length() * 2) + 7) / 8);
+		return sizeof(binmap_t) + binmap_size + binmap_size;
 	}
 
 
@@ -640,9 +648,11 @@ namespace xcore
 	*/
 	void binmap_t::copy(binmap_t& destination, const binmap_t& source)
 	{
-		destination.init(source.binroot_, destination.allocator_);
-		x_memcpy(destination.binmap1_, source.binmap1_, destination.binmap1_size);
-		x_memcpy(destination.binmap0_, source.binmap0_, destination.binmap0_size);
+		ASSERT(source.binroot_ != bin_t::NONE);
+		ASSERT(source.binroot_ == destination.binroot_);
+		u32 const binmap_size = (u32)(((source.binroot_.base_length() * 2) + 7) / 8);
+		x_memcpy(destination.binmap1_, source.binmap1_, binmap_size);
+		x_memcpy(destination.binmap0_, source.binmap0_, binmap_size);
 	}
 
 
