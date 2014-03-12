@@ -138,7 +138,6 @@ namespace xcore
 			root_signature_ = signature_t();
 			work_signature_ = signature_t();
 			root_bin_ = bin_t::NONE;
-			root_layer = 0;
 			signature_data_array_ = 0;
 		}
 
@@ -149,11 +148,7 @@ namespace xcore
 				allocator_->deallocate(signature_data_array_);
 				signature_data_array_ = NULL;
 				root_signature_ = signature_t();
-			}
-
-			if (work_signature_.digest_!=NULL)
-			{
-				allocator_->deallocate(work_signature_);
+				work_signature_ = signature_t();
 			}
 
 			root_bin_ = bin_t::NONE;
@@ -178,7 +173,7 @@ namespace xcore
 			ASSERT(allocator_ != NULL);
 			ASSERT(combine_f_ != NULL);
 
-			u32 const size = (u32)((root_bin_.base_length() * 2) - 1) * _root_signature_.length_;
+			u32 const size = (u32)(root_bin_.base_length() * 2) * _root_signature_.length_;
 
 			count_signature_ = _count;
 			submit_signature_ = 0;
@@ -186,7 +181,8 @@ namespace xcore
 			signature_data_array_ = (xbyte*)allocator_->allocate(size, sizeof(void*));
 			x_memzero(signature_data_array_, size);
 
-			allocator_->allocate(work_signature_);
+			work_signature_ = signature_t(NULL, _root_signature_.length_);
+			work_signature_.digest_ = signature_data_array_ - _root_signature_.length_;
 
 			root_signature_ = signature_t(NULL, _root_signature_.length_);
 			get_signature_at(root_bin_, root_signature_);
@@ -283,6 +279,18 @@ namespace xcore
 			}
 			imp_->state_ = imp::FINAL;
 			return true;
+		}
+
+		/*
+		 Build the signature tree from the base level up until the root and then
+		 validate the root against the given root signature
+		*/
+		bool			map::builder::build_and_verify(signature_t const& _root_signature)
+		{
+			if (!build())
+				return false;
+
+			return are_signatures_equal(_root_signature, imp_->root_signature_);
 		}
 
 		//

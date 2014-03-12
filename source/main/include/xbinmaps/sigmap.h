@@ -33,9 +33,6 @@ namespace xcore
 		public:
 			virtual void*	allocate(xsize_t _size, u32 _alignment) = 0;
 			virtual void	deallocate(void*) = 0;
-
-			virtual void	allocate(signature_t&) = 0;
-			virtual void	deallocate(signature_t&) = 0;
 		};
 
 		/**
@@ -97,7 +94,6 @@ namespace xcore
 				signature_t				work_signature_;
 
 				bin_t					root_bin_;
-				u32						root_layer;
 
 				u32						count_signature_;
 				u32						submit_signature_;
@@ -120,7 +116,9 @@ namespace xcore
 				void					close();
 
 				s32						submit(bin_t _bin, signature_t const& _signature);	// return: 1=added, -1 if this was the last signature of a trusted sub-tree that failed to result in the trusted signature
+				
 				bool					build();
+				bool					build_and_verify(signature_t const& _root_signature);
 
 			protected:
 				friend map;

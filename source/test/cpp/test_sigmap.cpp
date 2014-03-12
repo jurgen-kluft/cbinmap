@@ -146,6 +146,7 @@ UNITTEST_SUITE_BEGIN(sigmap)
 			CHECK_EQUAL(1, smb.submit(bin_t(0, 1), signature2));
 
 			CHECK_TRUE(smb.build());
+			CHECK_TRUE(smb.build_and_verify(rootSignature));
 
 			smb.close();
 			a.deallocate(rootSignature);
@@ -189,6 +190,7 @@ UNITTEST_SUITE_BEGIN(sigmap)
 			}
 
 			CHECK_TRUE(smb.build());
+			CHECK_TRUE(smb.build_and_verify(rootSignature));
 
 			smb.close();
 			a.deallocate(rootSignature);
