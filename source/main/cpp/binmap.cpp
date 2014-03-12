@@ -504,7 +504,7 @@ namespace xcore
 						xbyte* lb = binmap0_ + llo;
 						xbyte* rb = binmap0_ + lro;
 
-						s32 const d = rb - lb;
+						s32 const d = (s32)(rb - lb);
 						if (d == 0)
 						{
 							*lb = *lb & (lm | rm);
@@ -560,7 +560,8 @@ namespace xcore
 					{
 						xbyte* lb = binmap1_ + llo;
 						xbyte* rb = binmap1_ + lro;
-						s32 const d = rb - lb;
+
+						s32 const d = (s32)(rb - lb);
 						if (d == 0)
 						{
 							*lb = *lb & (lm | rm);

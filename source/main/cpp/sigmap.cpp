@@ -409,7 +409,7 @@ namespace xcore
 			copy(*dst++, root_signature_);
 
 			// return the number of signatures that are part of the branch
-			const s32 n = dst - _branch_signatures;
+			const s32 n = (s32)(dst - _branch_signatures);
 			return n;
 		}
 
