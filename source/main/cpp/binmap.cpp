@@ -12,7 +12,7 @@ namespace xcore
 	*/
 	binmap_t::binmap_t()
 		: allocator_(0)
-		, binroot_(bin_t::NONE)
+		, binroot_(0)
 		, binmap1_(0)
 		, binmap0_(0)
 	{
@@ -37,16 +37,21 @@ namespace xcore
 		ASSERT(binmap1_ == NULL);
 		ASSERT(binmap0_ == NULL);
 
-		binroot_ = _bin;
-		while (binroot_.layer_offset() > 0)
-			binroot_.to_parent();
-		ASSERT(binroot_.base_length() >= 2);
+		bin_t root = _bin;
+		while (root.layer_offset() > 0)
+			root.to_parent();
+		ASSERT(root.base_length() >= 2);
 
-		u32 const binmap_size = (u32)(((binroot_.base_length() * 2) + 7) / 8);
+		u32 const binmap_size = (u32)(((root.base_length() * 2) + 7) / 8);
 
 		allocator_ = _allocator;
-		binmap1_ = (xbyte*)_allocator->allocate(binmap_size * 2, 8);
+
+		binroot_  = (bin_t*)_allocator->allocate(binmap_size * 2 + sizeof(bin_t), 8);
+		*binroot_ = root;
+
+		binmap1_ = (xbyte*)binroot_ + sizeof(bin_t);
 		binmap0_ = binmap1_ + binmap_size;
+
 		clear();
 	}
 
@@ -57,17 +62,16 @@ namespace xcore
 	{
 		if (allocator_ != NULL)
 		{
-			// binmap0_ is part of binmap1_, so we do not need
-			// to deallocate binmap0_.
-			if (binmap1_ != NULL)
-				allocator_->deallocate(binmap1_);
+			// binmap0_ and binmap1_ are part of binroot_, so we
+			// do not need to deallocate them.
+			if (binroot_ != NULL)
+				allocator_->deallocate(binroot_);
 		}
 		allocator_ = NULL;
 
+		binroot_ = NULL;
 		binmap1_ = NULL;
 		binmap0_ = NULL;
-
-		binroot_ = bin_t::NONE;
 	}
 
 	/**
@@ -75,7 +79,7 @@ namespace xcore
 	*/
 	bool binmap_t::is_empty() const
 	{
-		bool const r = read_value0_at(binroot_);
+		bool const r = read_value0_at(*binroot_);
 		return !r;
 	}
 
@@ -85,7 +89,7 @@ namespace xcore
 	*/
 	bool binmap_t::is_filled() const
 	{
-		return is_filled(binroot_);
+		return is_filled(*binroot_);
 	}
 
 
@@ -97,11 +101,11 @@ namespace xcore
 		bool r = false;
 		if (bin == bin_t::ALL)
 		{
-			r = read_value0_at(binroot_);
+			r = read_value0_at(*binroot_);
 		}
 		else
 		{
-			ASSERT(binroot_.contains(bin));
+			ASSERT(binroot_->contains(bin));
 			r = read_value0_at(bin);
 		}
 		return !r;
@@ -116,11 +120,11 @@ namespace xcore
 		bool v = false;
 		if (bin == bin_t::ALL)
 		{
-			v = read_value1_at(binroot_);
+			v = read_value1_at(*binroot_);
 		}
 		else
 		{
-			ASSERT(binroot_.contains(bin));
+			ASSERT(binroot_->contains(bin));
 			v = read_value1_at(bin);
 		}
 		return v;
@@ -137,7 +141,7 @@ namespace xcore
 		if (!v)
 			return i;
 
-		while (i != binroot_)
+		while (i != *binroot_)
 		{
 			bin_t p = i.parent();
 			v = read_value1_at(p);
@@ -154,7 +158,7 @@ namespace xcore
 	*/
 	bin_t binmap_t::find_empty() const
 	{
-		return find_empty(binroot_);
+		return find_empty(*binroot_);
 	}
 
 
@@ -164,10 +168,10 @@ namespace xcore
 	bin_t binmap_t::find_filled() const
 	{
 		// Can we can find a filled bin in this sub-tree?
-		if (read_value0_at(binroot_)==false)
+		if (read_value0_at(*binroot_)==false)
 			return bin_t::NONE;
 
-		bin_t i(binroot_);
+		bin_t i(*binroot_);
 		s32 l = i.layer();
 		while (l >= 0)
 		{
@@ -192,12 +196,12 @@ namespace xcore
 		ASSERT(start != bin_t::ALL);
 
 		// does start fall within this binmap?
-		if (!binroot_.contains(start))
+		if (!binroot_->contains(start))
 		{
 			return bin_t::NONE;
 		}
 
-		if (read_value1_at(binroot_))
+		if (read_value1_at(*binroot_))
 		{	// full, impossible to find an empty bin
 			return bin_t::NONE;
 		}
@@ -217,7 +221,7 @@ namespace xcore
 
 			// traverse horizontally
 			i = bin_t(layer, i.layer_offset() + 1);
-			if (!binroot_.contains(i))
+			if (!binroot_->contains(i))
 				return bin_t::NONE;
 
 			bin_t const parent = i.parent();
@@ -227,7 +231,7 @@ namespace xcore
 				++layer;
 			}
 
-		} while (i != binroot_);
+		} while (i != *binroot_);
 
 		// We can find an empty bin in this sub-tree
 		while (layer >= 0)
@@ -260,14 +264,14 @@ namespace xcore
 	*/
 	bin_t binmap_t::find_complement(const binmap_t& destination, const binmap_t& source, const bin_t::uint_t twist)
 	{
-		return find_complement(destination, source, source.binroot_, twist);
+		return find_complement(destination, source, *source.binroot_, twist);
 	}
 
 	bin_t binmap_t::find_complement(const binmap_t& destination, const binmap_t& source, bin_t range, const bin_t::uint_t twist)
 	{
-		ASSERT(source.binroot_.contains(range));
-		ASSERT(destination.binroot_.contains(range));
-		ASSERT(source.binroot_ == destination.binroot_);
+		ASSERT(source.binroot_->contains(range));
+		ASSERT(destination.binroot_->contains(range));
+		ASSERT(*source.binroot_ == *destination.binroot_);
 
 		// Brute Force
 		s32 const lbo = (s32)(range.base_left().layer_offset());
@@ -279,7 +283,7 @@ namespace xcore
 			if (source.read_value1_at(b)==true && destination.read_value1_at(b)==false)
 			{
 				// up
-				while (b != source.binroot_)
+				while (b != *source.binroot_)
 				{
 					bin_t p = b.parent();
 					if (source.read_value1_at(p)==true && destination.read_value0_at(p)==false)
@@ -309,13 +313,13 @@ namespace xcore
 		if (bin.is_none())
 			return;
 
-		if (bin == binroot_ || bin == bin_t::ALL)
+		if (bin == *binroot_ || bin == bin_t::ALL)
 		{
 			fill();
 		}
-		else if (binroot_.contains(bin))
+		else if (binroot_->contains(bin))
 		{
-			const u32 root_layer = binroot_.layer();
+			const u32 root_layer = binroot_->layer();
 			const u32 bin_layer  = (root_layer>0) ? bin.layer() : 0;
 
 			// check if this action is changing the value to begin with
@@ -451,13 +455,13 @@ namespace xcore
 		if (bin.is_none()) 
 			return;
 
-		if (bin == binroot_ || bin == bin_t::ALL)
+		if (bin == *binroot_ || bin == bin_t::ALL)
 		{
 			clear();
 		}
-		else if (binroot_.contains(bin))
+		else if (binroot_->contains(bin))
 		{
-			const u32 root_layer = binroot_.layer();
+			const u32 root_layer = binroot_->layer();
 			const u32 bin_layer  = (root_layer>0) ? bin.layer() : 0;
 
 			// check if this action is changing the value to begin with
@@ -586,7 +590,7 @@ namespace xcore
 	*/
 	void binmap_t::clear()
 	{
-		u32 const binmap_size = (u32)(((binroot_.base_length() * 2) + 7) / 8);
+		u32 const binmap_size = (u32)(((binroot_->base_length() * 2) + 7) / 8);
 		x_memzero(binmap1_, binmap_size);
 		x_memzero(binmap0_, binmap_size);
 	}
@@ -597,7 +601,7 @@ namespace xcore
 	*/
 	void binmap_t::fill()
 	{
-		u32 const binmap_size = (u32)(((binroot_.base_length() * 2) + 7) / 8);
+		u32 const binmap_size = (u32)(((binroot_->base_length() * 2) + 7) / 8);
 		x_memset(binmap1_, 0xffffffff, binmap_size);
 		x_memset(binmap0_, 0xffffffff, binmap_size);
 	}
@@ -607,7 +611,7 @@ namespace xcore
 	*/
 	size_t binmap_t::total_size() const
 	{
-		u32 const binmap_size = (u32)(((binroot_.base_length() * 2) + 7) / 8);
+		u32 const binmap_size = (u32)(((binroot_->base_length() * 2) + 7) / 8);
 		return sizeof(binmap_t) + binmap_size + binmap_size;
 	}
 
@@ -618,10 +622,10 @@ namespace xcore
 	void binmap_t::status() const
 	{
 		x_printf("bitmap:\n");
-		s32 l = (s32)binroot_.layer();
-		s32 f = (s32)binroot_.base_length();
-		bin_t li = binroot_;
-		bin_t ri = binroot_;
+		s32 l = (s32)binroot_->layer();
+		s32 f = (s32)binroot_->base_length();
+		bin_t li = *binroot_;
+		bin_t ri = *binroot_;
 		for (int i=l; i>=0; --i) 
 		{
 			s32 w = (s32)(ri.layer_offset() - li.layer_offset());
@@ -640,7 +644,7 @@ namespace xcore
 		}
 
 		x_printf("size: %u bytes\n", static_cast<unsigned int>(total_size()));
-		x_printf("root bin: %llu\n", static_cast<unsigned long long>(binroot_.value()));
+		x_printf("root bin: %llu\n", static_cast<unsigned long long>(binroot_->value()));
 	}
 
 	/**
@@ -648,9 +652,9 @@ namespace xcore
 	*/
 	void binmap_t::copy(binmap_t& destination, const binmap_t& source)
 	{
-		ASSERT(source.binroot_ != bin_t::NONE);
-		ASSERT(source.binroot_ == destination.binroot_);
-		u32 const binmap_size = (u32)(((source.binroot_.base_length() * 2) + 7) / 8);
+		ASSERT(*source.binroot_ != bin_t::NONE);
+		ASSERT(*source.binroot_ == *destination.binroot_);
+		u32 const binmap_size = (u32)(((source.binroot_->base_length() * 2) + 7) / 8);
 		x_memcpy(destination.binmap1_, source.binmap1_, binmap_size);
 		x_memcpy(destination.binmap0_, source.binmap0_, binmap_size);
 	}

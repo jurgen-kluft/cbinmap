@@ -66,7 +66,7 @@ namespace xcore
 
 		allocator*		allocator_;
 
-		bin_t			binroot_;
+		bin_t*			binroot_;
 		xbyte*			binmap1_;				// the AND binmap with bit '0' = empty, bit '1' = full, parent = [left-child] & [right-child]
 		xbyte*			binmap0_;				// the  OR binmap with bit '0' = empty, bit '1' = full, parent = [left-child] | [right-child]
 
@@ -84,7 +84,7 @@ namespace xcore
 	*/
 	inline bin_t binmap_t::root() const
 	{
-		return binroot_;
+		return binroot_!=NULL ? *binroot_ : bin_t::NONE;
 	}
 
 	/**
@@ -92,7 +92,7 @@ namespace xcore
 	*/
 	inline bool	binmap_t::read_value1_at(bin_t _bin) const
 	{
-		ASSERT(binroot_.contains(_bin));
+		ASSERT(binroot_->contains(_bin));
 		xbyte const* byte = binmap1_ + (_bin.value() >> 3);
 		xbyte const  bit  = 0x80 >> (_bin.value() & 0x07);
 		return (*byte & bit) == bit;
@@ -103,7 +103,7 @@ namespace xcore
 	*/
 	inline s32 binmap_t::write_value1_at(bin_t _bin, bool _in_value)
 	{
-		ASSERT(binroot_.contains(_bin));
+		ASSERT(binroot_->contains(_bin));
 		xbyte     * byte = binmap1_ + (_bin.value() >> 3);
 		xbyte const bit  = 0x80 >> (_bin.value() & 0x07);
 		if (_in_value) *byte = *byte | bit;
@@ -116,7 +116,7 @@ namespace xcore
 	*/
 	inline bool binmap_t::update_value1_at(bin_t _bin, bool _in_value)
 	{
-		ASSERT(binroot_.contains(_bin));
+		ASSERT(binroot_->contains(_bin));
 		xbyte     * byte = binmap1_ + (_bin.value() >> 3);
 		xbyte const bit  = 0x80 >> (_bin.value() & 0x07);
 		bool old_value = (*byte & bit) != 0;
@@ -130,7 +130,7 @@ namespace xcore
 	*/
 	inline bool	binmap_t::read_value0_at(bin_t _bin) const
 	{
-		ASSERT(binroot_.contains(_bin));
+		ASSERT(binroot_->contains(_bin));
 		xbyte const* byte = binmap0_ + (_bin.value() >> 3);
 		xbyte const  bit  = 0x80 >> (_bin.value() & 0x07);
 		return (*byte & bit) == bit;
@@ -141,7 +141,7 @@ namespace xcore
 	*/
 	inline s32 binmap_t::write_value0_at(bin_t _bin, bool _in_value)
 	{
-		ASSERT(binroot_.contains(_bin));
+		ASSERT(binroot_->contains(_bin));
 		xbyte     * byte = binmap0_ + (_bin.value() >> 3);
 		xbyte const bit  = 0x80 >> (_bin.value() & 0x07);
 		if (_in_value) *byte = *byte | bit;
@@ -154,7 +154,7 @@ namespace xcore
 	*/
 	inline bool binmap_t::update_value0_at(bin_t _bin, bool _in_value)
 	{
-		ASSERT(binroot_.contains(_bin));
+		ASSERT(binroot_->contains(_bin));
 		xbyte     * byte = binmap0_ + (_bin.value() >> 3);
 		xbyte const bit  = 0x80 >> (_bin.value() & 0x07);
 		bool old_value = (*byte & bit) != 0;
