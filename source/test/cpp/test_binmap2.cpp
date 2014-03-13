@@ -1,4 +1,5 @@
 #include "xbase\x_debug.h"
+#include "xbase\x_memory_std.h"
 #include "xbinmaps\binmap.h"
 #include "xbinmaps\bin.h"
 #include "xbinmaps\utils.h"
@@ -7,53 +8,48 @@
 #include <random>
 
 using namespace xcore;
-
+typedef	binmaps::binmap	binmap_t;
 
 #define CHECK_EQUAL_BIN_T(a, b) CHECK_EQUAL(a.value(), b.value());
 
-
 extern xcore::x_iallocator* gTestAllocator;
-
-class my_cell_allocator2 : public binmap_t::allocator
-{
-public:
-	my_cell_allocator2()
-	{
-	}
-
-	virtual void*			allocate(xsize_t size, u32 align)
-	{
-		void* p = gTestAllocator->allocate(size, align);
-		return p;
-	}
-
-	virtual void			deallocate(void* p)
-	{
-		gTestAllocator->deallocate(p);
-	}
-};
 
 UNITTEST_SUITE_BEGIN(binmap2)
 {
 	UNITTEST_FIXTURE(main)
 	{
-		static my_cell_allocator2 ma;
-		static binmap_t::allocator* a = NULL;
+		u32 data_size = 0;
+		xbyte* data1 = NULL;
+		xbyte* data2 = NULL;
+		xbyte* data3 = NULL;
+
+		void clear_data()
+		{
+			x_memzero(data1, data_size);
+			x_memzero(data2, data_size);
+			x_memzero(data3, data_size);
+		}
 
 		UNITTEST_FIXTURE_SETUP() 
 		{
-			a = &ma;
+			data_size = binmaps::data::size_for(bin_t::to_root(1<<24));
+			data1 = (xbyte*)gTestAllocator->allocate(data_size, sizeof(void*));
+			data2 = (xbyte*)gTestAllocator->allocate(data_size, sizeof(void*));
+			data3 = (xbyte*)gTestAllocator->allocate(data_size, sizeof(void*));
 		}
 		UNITTEST_FIXTURE_TEARDOWN() 
 		{
-			a = NULL;
+			gTestAllocator->deallocate(data1);
+			gTestAllocator->deallocate(data2);
+			gTestAllocator->deallocate(data3);
 		}
 
 		UNITTEST_TEST(FindFiltered)
 		{
-			binmap_t data, filter;
-			data.init(64, a);
-			filter.init(64, a);
+			clear_data();
+			u32 const n = 64;
+			binmaps::binmap data(binmaps::user_data(bin_t::to_root(n), data1));
+			binmaps::binmap filter(binmaps::user_data(bin_t::to_root(n), data2));
 
 			data.set(bin_t(2,0));
 			data.set(bin_t(2,2));
@@ -63,15 +59,16 @@ UNITTEST_SUITE_BEGIN(binmap2)
 			filter.reset(bin_t(1,4));
 			filter.reset(bin_t(0,13));
 
-			bin_t x = ubinmap_t::find_complement(data, filter, bin_t(4,0), 0);
+			bin_t x = find_complement(data, filter, bin_t(4,0), 0);
 			CHECK_EQUAL_BIN_T(bin_t(0,12),x);
 		}
 
 		UNITTEST_TEST(FindFiltered1b)
 		{
-			binmap_t data, filter;
-			data.init(64, a);
-			filter.init(64, a);
+			clear_data();
+			u32 const n = 64;
+			binmaps::binmap data(binmaps::user_data(bin_t::to_root(n), data1));
+			binmaps::binmap filter(binmaps::user_data(bin_t::to_root(n), data2));
 
 			data.set(bin_t(2,0));
 			data.set(bin_t(2,2));
@@ -87,15 +84,16 @@ UNITTEST_SUITE_BEGIN(binmap2)
 			//fprintf(stderr,"Searching 0,12 from %s ", s.base_left().str(binstr ) );
 			//fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
 
-			bin_t x = ubinmap_t::find_complement(data, filter, s, 0);
+			bin_t x = find_complement(data, filter, s, 0);
 			CHECK_EQUAL_BIN_T(bin_t(0,12),x);
 		}
 
 		UNITTEST_TEST(FindFiltered1c) 
 		{
-			binmap_t data, filter;
-			data.init(64, a);
-			filter.init(64, a);
+			clear_data();
+			u32 const n = 64;
+			binmaps::binmap data(binmaps::user_data(bin_t::to_root(n), data1));
+			binmaps::binmap filter(binmaps::user_data(bin_t::to_root(n), data2));
 
 			data.set(bin_t(2,0));
 			data.set(bin_t(2,2));
@@ -112,7 +110,7 @@ UNITTEST_SUITE_BEGIN(binmap2)
 			//fprintf(stderr,"Searching 0,12x from %s ", s.base_left().str(binstr ) );
 			//fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
 
-			bin_t x = ubinmap_t::find_complement(data, filter, s, 0);
+			bin_t x = find_complement(data, filter, s, 0);
 			bin_t y = bin_t(1,6);
 			CHECK_EQUAL_BIN_T(y,x);
 		}
@@ -120,9 +118,10 @@ UNITTEST_SUITE_BEGIN(binmap2)
 
 		UNITTEST_TEST(FindFiltered2)
 		{
-			binmap_t data, filter;
-			data.init(1024, a);
-			filter.init(1024, a);
+			clear_data();
+			u32 const n = 1024;
+			binmaps::binmap data(binmaps::user_data(bin_t::to_root(n), data1));
+			binmaps::binmap filter(binmaps::user_data(bin_t::to_root(n), data2));
 
 			for(int i=0; i<1024; i+=2)
 				data.set(bin_t(0,i));
@@ -133,54 +132,57 @@ UNITTEST_SUITE_BEGIN(binmap2)
 			//fprintf(stderr,"test: empty %llu\n", filter.find_empty().value() );
 
 			data.reset(bin_t(0,500));
-			CHECK_EQUAL_BIN_T(bin_t(0,500),ubinmap_t::find_complement(data, filter, bin_t(10,0), 0).base_left());
+			CHECK_EQUAL_BIN_T(bin_t(0,500),find_complement(data, filter, bin_t(10,0), 0).base_left());
 			data.set(bin_t(0,500));
-			CHECK_EQUAL_BIN_T(bin_t::NONE,ubinmap_t::find_complement(data, filter, bin_t(10,0), 0).base_left());
+			CHECK_EQUAL_BIN_T(bin_t::NONE,find_complement(data, filter, bin_t(10,0), 0).base_left());
 		}
 
 
 		// Range is strict subtree
 		UNITTEST_TEST(FindFiltered3) 
 		{
-			binmap_t data, filter;
-			data.init(1024, a);
-			filter.init(1024, a);
+			clear_data();
+			u32 const n = 1024;
+			binmaps::binmap data(binmaps::user_data(bin_t::to_root(n), data1));
+			binmaps::binmap filter(binmaps::user_data(bin_t::to_root(n), data2));
 
 			for(int i=0; i<1024; i+=2)
 				data.set(bin_t(0,i));
 			for(int j=0; j<1024; j+=2)
 				filter.set(bin_t(0,j));
 			data.reset(bin_t(0,500));
-			CHECK_EQUAL_BIN_T(bin_t(0,500),ubinmap_t::find_complement(data, filter, bin_t(9,0), 0).base_left());
+			CHECK_EQUAL_BIN_T(bin_t(0,500),find_complement(data, filter, bin_t(9,0), 0).base_left());
 			data.set(bin_t(0,500));
-			CHECK_EQUAL_BIN_T(bin_t::NONE,ubinmap_t::find_complement(data, filter, bin_t(9,0), 0).base_left());
+			CHECK_EQUAL_BIN_T(bin_t::NONE,find_complement(data, filter, bin_t(9,0), 0).base_left());
 		}
 
 		// 1036 leaf tree
 
 		UNITTEST_TEST(FindFiltered4) 
 		{
-			binmap_t data, filter;
-			data.init(2048, a);
-			filter.init(2048, a);
+			clear_data();
+			u32 const n = 2048;
+			binmaps::binmap data(binmaps::user_data(bin_t::to_root(n), data1));
+			binmaps::binmap filter(binmaps::user_data(bin_t::to_root(n), data2));
 
 			for(int i=0; i<1036; i+=2)
 				data.set(bin_t(0,i));
 			for(int j=0; j<1036; j+=2)
 				filter.set(bin_t(0,j));
 			data.reset(bin_t(0,500));
-			CHECK_EQUAL_BIN_T(bin_t(0,500),ubinmap_t::find_complement(data, filter, bin_t(9,0), 0).base_left());
+			CHECK_EQUAL_BIN_T(bin_t(0,500),find_complement(data, filter, bin_t(9,0), 0).base_left());
 			data.set(bin_t(0,500));
-			CHECK_EQUAL_BIN_T(bin_t::NONE,ubinmap_t::find_complement(data, filter, bin_t(9,0), 0).base_left());
+			CHECK_EQUAL_BIN_T(bin_t::NONE,find_complement(data, filter, bin_t(9,0), 0).base_left());
 		}
 
 		// Make 8 bin hole in 1036 tree
 
 		UNITTEST_TEST(FindFiltered5)
 		{
-			binmap_t data, filter;
-			data.init(2048, a);
-			filter.init(2048, a);
+			clear_data();
+			u32 const n = 2048;
+			binmaps::binmap data(binmaps::user_data(bin_t::to_root(n), data1));
+			binmaps::binmap filter(binmaps::user_data(bin_t::to_root(n), data2));
 
 			for(int i=0; i<1036; i++) //completely full
 				data.set(bin_t(0,i));
@@ -190,21 +192,22 @@ UNITTEST_SUITE_BEGIN(binmap2)
 			for (int j=496; j<=503; j++)
 				data.reset(bin_t(0,j));
 
-			bin_t x = ubinmap_t::find_complement(data, filter, bin_t(9,0), 0);
+			bin_t x = find_complement(data, filter, bin_t(9,0), 0);
 			bin_t y = bin_t(3,62);
 			CHECK_EQUAL(y.layer(),x.layer());
 			CHECK_EQUAL(y.layer_offset(),x.layer_offset());
 
-			CHECK_EQUAL_BIN_T(bin_t(0,496),ubinmap_t::find_complement(data, filter, bin_t(9,0), 0).base_left());
+			CHECK_EQUAL_BIN_T(bin_t(0,496),find_complement(data, filter, bin_t(9,0), 0).base_left());
 		}
 
 
 		// Use simple example tree from RFC
 		UNITTEST_TEST(FindFiltered6) 
 		{
-			binmap_t data, filter;
-			data.init(64, a);
-			filter.init(64, a);
+			clear_data();
+			u32 const n = 64;
+			binmaps::binmap data(binmaps::user_data(bin_t::to_root(n), data1));
+			binmaps::binmap filter(binmaps::user_data(bin_t::to_root(n), data2));
 
 			for(int i=0; i<14; i+=2)  //completely full example tree
 				data.set(bin_t(i));
@@ -214,17 +217,18 @@ UNITTEST_SUITE_BEGIN(binmap2)
 			for (int j=4; j<=6; j+=2) // reset leaves 4 and 6 (int)
 				data.reset(bin_t(j));
 
-			CHECK_EQUAL_BIN_T(bin_t(1,1),ubinmap_t::find_complement(data, filter, bin_t(2,0), 0) );
-			CHECK_EQUAL_BIN_T(bin_t(0,2),ubinmap_t::find_complement(data, filter, bin_t(2,0), 0).base_left());
+			CHECK_EQUAL_BIN_T(bin_t(1,1),find_complement(data, filter, bin_t(2,0), 0) );
+			CHECK_EQUAL_BIN_T(bin_t(0,2),find_complement(data, filter, bin_t(2,0), 0).base_left());
 		}
 
 
 		// diff in right tree, range is left tree
 		UNITTEST_TEST(FindFiltered7) 
 		{
-			binmap_t data, filter;
-			data.init(64, a);
-			filter.init(64, a);
+			clear_data();
+			u32 const n = 64;
+			binmaps::binmap data(binmaps::user_data(bin_t::to_root(n), data1));
+			binmaps::binmap filter(binmaps::user_data(bin_t::to_root(n), data2));
 
 			for(int i=0; i<14; i+=2)  //completely full example tree
 				data.set(bin_t(i));
@@ -236,16 +240,17 @@ UNITTEST_SUITE_BEGIN(binmap2)
 			for (int j=8; j<=10; j+=2)	// make diff out of range
 				data.reset(bin_t(j));
 
-			CHECK_EQUAL_BIN_T(bin_t::NONE,ubinmap_t::find_complement(data, filter, bin_t(2,0), 0) );
-			CHECK_EQUAL_BIN_T(bin_t::NONE,ubinmap_t::find_complement(data, filter, bin_t(2,0), 0).base_left());
+			CHECK_EQUAL_BIN_T(bin_t::NONE,find_complement(data, filter, bin_t(2,0), 0) );
+			CHECK_EQUAL_BIN_T(bin_t::NONE,find_complement(data, filter, bin_t(2,0), 0).base_left());
 		}
 
 		// diff in left tree, range is right tree
 		UNITTEST_TEST(FindFiltered8) 
 		{
-			binmap_t data, filter;
-			data.init(64, a);
-			filter.init(64, a);
+			clear_data();
+			u32 const n = 64;
+			binmaps::binmap data(binmaps::user_data(bin_t::to_root(n), data1));
+			binmaps::binmap filter(binmaps::user_data(bin_t::to_root(n), data2));
 
 			for(int i=0; i<14; i+=2)  //completely full example tree
 				data.set(bin_t(i));
@@ -257,17 +262,18 @@ UNITTEST_SUITE_BEGIN(binmap2)
 			for (int j=4; j<=6; j+=2)	// make diff out of range
 				data.reset(bin_t(j));
 
-			CHECK_EQUAL_BIN_T(bin_t::NONE,ubinmap_t::find_complement(data, filter, bin_t(2,1), 0) );
-			CHECK_EQUAL_BIN_T(bin_t::NONE,ubinmap_t::find_complement(data, filter, bin_t(2,1), 0).base_left());
+			CHECK_EQUAL_BIN_T(bin_t::NONE,find_complement(data, filter, bin_t(2,1), 0) );
+			CHECK_EQUAL_BIN_T(bin_t::NONE,find_complement(data, filter, bin_t(2,1), 0).base_left());
 		}
 
 
 		// reverse empty/full
 		UNITTEST_TEST(FindFiltered9) 
 		{
-			binmap_t data, filter;
-			data.init(64, a);
-			filter.init(64, a);
+			clear_data();
+			u32 const n = 64;
+			binmaps::binmap data(binmaps::user_data(bin_t::to_root(n), data1));
+			binmaps::binmap filter(binmaps::user_data(bin_t::to_root(n), data2));
 
 			for(int i=0; i<14; i+=2)  //completely empty example tree
 				data.reset(bin_t(i));
@@ -279,8 +285,8 @@ UNITTEST_SUITE_BEGIN(binmap2)
 			for (int j=4; j<=6; j+=2)	// make diff out of range
 				data.set(bin_t(j));
 
-			CHECK_EQUAL_BIN_T(bin_t::NONE,ubinmap_t::find_complement(data, filter, bin_t(2,1), 0) );
-			CHECK_EQUAL_BIN_T(bin_t::NONE,ubinmap_t::find_complement(data, filter, bin_t(2,1), 0).base_left());
+			CHECK_EQUAL_BIN_T(bin_t::NONE,find_complement(data, filter, bin_t(2,1), 0) );
+			CHECK_EQUAL_BIN_T(bin_t::NONE,find_complement(data, filter, bin_t(2,1), 0).base_left());
 		}
 
 
@@ -288,9 +294,10 @@ UNITTEST_SUITE_BEGIN(binmap2)
 
 		UNITTEST_TEST(FindFiltered10) 
 		{
-			binmap_t data, filter;
-			data.init(1024, a);
-			filter.init(1024, a);
+			clear_data();
+			u32 const n = 1024;
+			binmaps::binmap data(binmaps::user_data(bin_t::to_root(n), data1));
+			binmaps::binmap filter(binmaps::user_data(bin_t::to_root(n), data2));
 
 			for(int i=0; i<999; i++) //completely full
 				data.set(bin_t(0,i));
@@ -300,16 +307,17 @@ UNITTEST_SUITE_BEGIN(binmap2)
 			for (int j=496; j<=503; j++)
 				data.reset(bin_t(0,j));
 
-			CHECK_EQUAL_BIN_T(bin_t(3,62),ubinmap_t::find_complement(data, filter, bin_t(9,0), 0) );
-			CHECK_EQUAL_BIN_T(bin_t(0,496),ubinmap_t::find_complement(data, filter, bin_t(9,0), 0).base_left());
+			CHECK_EQUAL_BIN_T(bin_t(3,62),find_complement(data, filter, bin_t(9,0), 0) );
+			CHECK_EQUAL_BIN_T(bin_t(0,496),find_complement(data, filter, bin_t(9,0), 0).base_left());
 		}
 
 		// Make 8 bin hole in 999 tree, right subtree, does not start a 8-bin subtree
 		UNITTEST_TEST(FindFiltered11)
 		{
-			binmap_t data, filter;
-			data.init(1024, a);
-			filter.init(1024, a);
+			clear_data();
+			u32 const n = 1024;
+			binmaps::binmap data(binmaps::user_data(bin_t::to_root(n), data1));
+			binmaps::binmap filter(binmaps::user_data(bin_t::to_root(n), data2));
 
 			for(int i=0; i<999; i++) //completely full
 				data.set(bin_t(0,i));
@@ -319,16 +327,17 @@ UNITTEST_SUITE_BEGIN(binmap2)
 			for (int j=514; j<=521; j++)
 				data.reset(bin_t(0,j));
 
-			CHECK_EQUAL_BIN_T(bin_t(1,257),ubinmap_t::find_complement(data, filter, bin_t(9,1), 0) );
-			CHECK_EQUAL_BIN_T(bin_t(0,514),ubinmap_t::find_complement(data, filter, bin_t(9,1), 0).base_left());
+			CHECK_EQUAL_BIN_T(bin_t(1,257),find_complement(data, filter, bin_t(9,1), 0) );
+			CHECK_EQUAL_BIN_T(bin_t(0,514),find_complement(data, filter, bin_t(9,1), 0).base_left());
 		}
 
 		// Make 8 bin hole in 999 tree, move hole
 		UNITTEST_TEST(FindFiltered12)
 		{
-			binmap_t data, filter;
-			data.init(1024, a);
-			filter.init(1024, a);
+			clear_data();
+			u32 const n = 1024;
+			binmaps::binmap data(binmaps::user_data(bin_t::to_root(n), data1));
+			binmaps::binmap filter(binmaps::user_data(bin_t::to_root(n), data2));
 
 			for(int i=0; i<999; i++) //completely full
 				data.set(bin_t(0,i));
@@ -342,7 +351,7 @@ UNITTEST_SUITE_BEGIN(binmap2)
 					data.reset(bin_t(0,j));
 
 				int subtree = (x <= 511) ? 0 : 1;
-				CHECK_EQUAL_BIN_T(bin_t(0,x),ubinmap_t::find_complement(data, filter, bin_t(9,subtree), 0).base_left());
+				CHECK_EQUAL_BIN_T(bin_t(0,x),find_complement(data, filter, bin_t(9,subtree), 0).base_left());
 
 				// Restore
 				for (int j=x; j<=x+7; j++) {
@@ -354,9 +363,10 @@ UNITTEST_SUITE_BEGIN(binmap2)
 		// Make 8 bin hole in sparse 999 tree, move hole
 		UNITTEST_TEST(FindFiltered13) 
 		{
-			binmap_t data, filter;
-			data.init(1024, a);
-			filter.init(1024, a);
+			clear_data();
+			u32 const n = 1024;
+			binmaps::binmap data(binmaps::user_data(bin_t::to_root(n), data1));
+			binmaps::binmap filter(binmaps::user_data(bin_t::to_root(n), data2));
 
 			for(int i=0; i<999; i+=2) // sparse
 				data.set(bin_t(0,i));
@@ -373,15 +383,15 @@ UNITTEST_SUITE_BEGIN(binmap2)
 				int subtree = (x <= 511) ? 0 : 1;
 				if (x < 511)
 				{
-					CHECK_EQUAL_BIN_T(bin_t(0,y),ubinmap_t::find_complement(data, filter, bin_t(9,0), 0).base_left());
+					CHECK_EQUAL_BIN_T(bin_t(0,y),find_complement(data, filter, bin_t(9,0), 0).base_left());
 				}
 				else if (x == 511) // sparse bitmap 101010101..., so actual diff in next subtree
 				{
-					CHECK_EQUAL_BIN_T(bin_t::NONE,ubinmap_t::find_complement(data, filter, bin_t(9,0), 0).base_left());
+					CHECK_EQUAL_BIN_T(bin_t::NONE,find_complement(data, filter, bin_t(9,0), 0).base_left());
 				}
 				else
 				{
-					CHECK_EQUAL_BIN_T(bin_t(0,y),ubinmap_t::find_complement(data, filter, bin_t(9,1), 0).base_left());
+					CHECK_EQUAL_BIN_T(bin_t(0,y),find_complement(data, filter, bin_t(9,1), 0).base_left());
 				}
 
 				for(int i=0; i<999; i+=2) // sparse
@@ -392,9 +402,10 @@ UNITTEST_SUITE_BEGIN(binmap2)
 		// Make 8 bin hole in sparse 999 tree, move hole
 		UNITTEST_TEST(FindFiltered14) 
 		{
-			binmap_t data, filter;
-			data.init(1024, a);
-			filter.init(1024, a);
+			clear_data();
+			u32 const n = 1024;
+			binmaps::binmap data(binmaps::user_data(bin_t::to_root(n), data1));
+			binmaps::binmap filter(binmaps::user_data(bin_t::to_root(n), data2));
 
 			for(int i=0; i<999; i+=2) // sparse
 				data.set(bin_t(0,i));
@@ -414,15 +425,15 @@ UNITTEST_SUITE_BEGIN(binmap2)
 				int subtree = (x <= 511) ? 0 : 1;
 				if (x < 511)
 				{
-					CHECK_EQUAL_BIN_T(bin_t(0,y),ubinmap_t::find_complement(data, filter, bin_t(9,0), 0).base_left());
+					CHECK_EQUAL_BIN_T(bin_t(0,y),find_complement(data, filter, bin_t(9,0), 0).base_left());
 				}
 				else if (x == 511) // sparse bitmap 101010101..., so actual diff in next subtree
 				{
-					CHECK_EQUAL_BIN_T(bin_t::NONE,ubinmap_t::find_complement(data, filter, bin_t(9,0), 0).base_left());
+					CHECK_EQUAL_BIN_T(bin_t::NONE,find_complement(data, filter, bin_t(9,0), 0).base_left());
 				}
 				else
 				{
-					CHECK_EQUAL_BIN_T(bin_t(0,y),ubinmap_t::find_complement(data, filter, bin_t(9,1), 0).base_left());
+					CHECK_EQUAL_BIN_T(bin_t(0,y),find_complement(data, filter, bin_t(9,1), 0).base_left());
 				}
 
 
@@ -434,9 +445,10 @@ UNITTEST_SUITE_BEGIN(binmap2)
 		// Make holes at 292, problematic in a specific experiment
 		UNITTEST_TEST(FindFiltered15)
 		{
-			binmap_t data, filter;
-			data.init(1024, a);
-			filter.init(1024, a);
+			clear_data();
+			u32 const n = 1024;
+			binmaps::binmap data(binmaps::user_data(bin_t::to_root(n), data1));
+			binmaps::binmap filter(binmaps::user_data(bin_t::to_root(n), data2));
 
 			for(int i=0; i<999; i++) // completely full
 				data.set(bin_t(0,i));
@@ -448,15 +460,16 @@ UNITTEST_SUITE_BEGIN(binmap2)
 			data.reset(bin_t(514));
 			data.reset(bin_t(998));
 
-			CHECK_EQUAL_BIN_T(bin_t(292),ubinmap_t::find_complement(data, filter, bin_t(9,0), 0).base_left());
+			CHECK_EQUAL_BIN_T(bin_t(292),find_complement(data, filter, bin_t(9,0), 0).base_left());
 		}
 
 		// VOD like. Make first hole at 292.
 		UNITTEST_TEST(FindFiltered16)
 		{
-			binmap_t data, filter;
-			data.init(1024, a);
-			filter.init(1024, a);
+			clear_data();
+			u32 const n = 1024;
+			binmaps::binmap data(binmaps::user_data(bin_t::to_root(n), data1));
+			binmaps::binmap filter(binmaps::user_data(bin_t::to_root(n), data2));
 
 			for(int i=0; i<292/2; i++) // prefix full
 				data.set(bin_t(0,i));
@@ -469,15 +482,16 @@ UNITTEST_SUITE_BEGIN(binmap2)
 			for(int j=0; j<999; j++)
 				filter.set(bin_t(0,j));
 
-			CHECK_EQUAL_BIN_T(bin_t(292),ubinmap_t::find_complement(data, filter, bin_t(9,0), 0).base_left());
+			CHECK_EQUAL_BIN_T(bin_t(292),find_complement(data, filter, bin_t(9,0), 0).base_left());
 		}
 
 		// VOD like. Make first hole at 292.
 		UNITTEST_TEST(FindFiltered17) 
 		{
-			binmap_t offer, ack_hint_out;
-			offer.init(1024, a);
-			ack_hint_out.init(1024, a);
+			clear_data();
+			u32 const n = 1024;
+			binmaps::binmap offer(binmaps::user_data(bin_t::to_root(n), data1));
+			binmaps::binmap ack_hint_out(binmaps::user_data(bin_t::to_root(n), data2));
 
 			for(int i=0; i<999; i++) // offer completely full
 				offer.set(bin_t(0,i));
@@ -490,8 +504,7 @@ UNITTEST_SUITE_BEGIN(binmap2)
 					ack_hint_out.set(bin_t(0,i+x));
 			}
 
-			binmap_t binmap;
-			binmap.init(1024, a);
+			binmaps::binmap binmap(binmaps::user_data(bin_t::to_root(n), data3));
 
 			// report the first bin we find
 			int layer = 0;
@@ -501,8 +514,8 @@ UNITTEST_SUITE_BEGIN(binmap2)
 			{
 				bin_t curr = bin_t(layer++,0);
 				binmap.fill();
-				ubinmap_t::copy(binmap, ack_hint_out, curr);
-				hint = ubinmap_t::find_complement(binmap, offer, twist);
+				copy(binmap, ack_hint_out, curr);
+				hint = find_complement(binmap, offer, twist);
 				binmap.clear();
 			}
 
@@ -512,11 +525,10 @@ UNITTEST_SUITE_BEGIN(binmap2)
 		// VOD like. Make first hole at 292. Twisting + patching holes
 		UNITTEST_TEST(FindFiltered19)
 		{
-			return;
-
-			binmap_t offer, ack_hint_out;
-			offer.init(1024, a);
-			ack_hint_out.init(1024, a);
+			clear_data();
+			u32 const n = 1024;
+			binmaps::binmap offer(binmaps::user_data(bin_t::to_root(n), data1));
+			binmaps::binmap ack_hint_out(binmaps::user_data(bin_t::to_root(n), data2));
 
 			for(int i=0; i<999; i++) // offer completely full
 				offer.set(bin_t(0,i));
@@ -529,8 +541,7 @@ UNITTEST_SUITE_BEGIN(binmap2)
 					ack_hint_out.set(bin_t(0,i+x));
 			}
 
-			binmap_t binmap;
-			binmap.init(1024, a);
+			binmaps::binmap binmap(binmaps::user_data(bin_t::to_root(n), data3));
 
 			int layer = 0;
 			u64 twist = 0;
@@ -544,8 +555,8 @@ UNITTEST_SUITE_BEGIN(binmap2)
 					layer++;
 
 				binmap.fill();
-				ubinmap_t::copy(binmap, ack_hint_out, curr);
-				hint = ubinmap_t::find_complement(binmap, offer, twist);
+				copy(binmap, ack_hint_out, curr);
+				hint = find_complement(binmap, offer, twist);
 
 				//if (!hint.is_none())
 				//	fprintf(stderr,"Found alt ");
@@ -573,7 +584,9 @@ UNITTEST_SUITE_BEGIN(binmap2)
 		// VOD like. Make first hole at 292. Twisting + patching holes. Stalled
 		// at Playbackpos, looking increasingly higher layers.
 		/*
-		UNITTEST_TEST(FindFiltered20) {
+		UNITTEST_TEST(FindFiltered20)
+		{
+			clear_data();
 
 			binmap_t offer(a), ack_hint_out(a);
 			for(int i=0; i<999; i++) // offer completely full
@@ -601,8 +614,8 @@ UNITTEST_SUITE_BEGIN(binmap2)
 						curr = curr.parent();
 
 					binmap.fill(offer);
-					ubinmap_t::copy(binmap, ack_hint_out, curr);
-					hint = ubinmap_t::find_complement(binmap, offer, twist);
+					copy(binmap, ack_hint_out, curr);
+					hint = find_complement(binmap, offer, twist);
 
 					if (!hint.is_none())
 						fprintf(stderr,"Found alt %s ", hint.str(binstr) );
@@ -619,11 +632,12 @@ UNITTEST_SUITE_BEGIN(binmap2)
 
 		UNITTEST_TEST(FindFilteredRiccardo3)
 		{
+			clear_data();
 			u64 twist = 0;
 
-			binmap_t data, filter;
-			data.init(1024, a);
-			filter.init(1024, a);
+			u32 const n = 1024;
+			binmaps::binmap data(binmaps::user_data(bin_t::to_root(n), data1));
+			binmaps::binmap filter(binmaps::user_data(bin_t::to_root(n), data2));
 
 
 			for(int i=0; i<1024; i+=2)
@@ -642,7 +656,7 @@ UNITTEST_SUITE_BEGIN(binmap2)
 			//fprintf(stderr,"Searching 0,6 from %s ", s.base_left().str(binstr ) );
 			//fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
 
-			bin_t got = ubinmap_t::find_complement(data, filter, s, twist).base_left();
+			bin_t got = find_complement(data, filter, s, twist).base_left();
 			CHECK_EQUAL_BIN_T(bin_t(0,6),got);
 			CHECK_EQUAL(true,s.contains(got));
 
@@ -658,7 +672,7 @@ UNITTEST_SUITE_BEGIN(binmap2)
 			//fprintf(stderr,"Searching 0,18 from %s ", s.base_left().str(binstr ) );
 			//fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
 
-			got = ubinmap_t::find_complement(data, filter, s, twist).base_left();
+			got = find_complement(data, filter, s, twist).base_left();
 			CHECK_EQUAL_BIN_T(bin_t(0,18),got);
 			CHECK_EQUAL(true,s.contains(got));
 
@@ -674,7 +688,7 @@ UNITTEST_SUITE_BEGIN(binmap2)
 			//fprintf(stderr,"Searching 0,162 from %s ", s.base_left().str(binstr ) );
 			//fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
 
-			got = ubinmap_t::find_complement(data, filter, s, twist).base_left();
+			got = find_complement(data, filter, s, twist).base_left();
 			CHECK_EQUAL_BIN_T(bin_t(0,162),got);
 			CHECK_EQUAL(true,s.contains(got));
 
@@ -690,7 +704,7 @@ UNITTEST_SUITE_BEGIN(binmap2)
 			//fprintf(stderr,"Searching 0,168 from %s ", s.base_left().str(binstr ) );
 			//fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
 
-			got = ubinmap_t::find_complement(data, filter, s, twist).base_left();
+			got = find_complement(data, filter, s, twist).base_left();
 			CHECK_EQUAL_BIN_T(bin_t(0,170),got);
 			CHECK_EQUAL(true,s.contains(got));
 
@@ -706,7 +720,7 @@ UNITTEST_SUITE_BEGIN(binmap2)
 			//fprintf(stderr,"Searching 0,174 from %s ", s.base_left().str(binstr ) );
 			//fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
 
-			got = ubinmap_t::find_complement(data, filter, s, twist).base_left();
+			got = find_complement(data, filter, s, twist).base_left();
 			CHECK_EQUAL_BIN_T(bin_t(0,174),got);
 			CHECK_EQUAL(true,s.contains(got));
 
@@ -723,7 +737,7 @@ UNITTEST_SUITE_BEGIN(binmap2)
 			//fprintf(stderr,"Searching 0,182 from %s ", s.base_left().str(binstr ) );
 			//fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
 
-			got = ubinmap_t::find_complement(data, filter, s, twist).base_left();
+			got = find_complement(data, filter, s, twist).base_left();
 			CHECK_EQUAL_BIN_T(bin_t(0,182),got);
 			CHECK_EQUAL(true,s.contains(got));
 
@@ -739,7 +753,7 @@ UNITTEST_SUITE_BEGIN(binmap2)
 			//fprintf(stderr,"Searching 0,184 from %s ", s.base_left().str(binstr ) );
 			//fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
 
-			got = ubinmap_t::find_complement(data, filter, s, twist).base_left();
+			got = find_complement(data, filter, s, twist).base_left();
 			CHECK_EQUAL_BIN_T(bin_t(0,186),got);
 			CHECK_EQUAL(true,s.contains(got));
 
@@ -755,7 +769,7 @@ UNITTEST_SUITE_BEGIN(binmap2)
 			//fprintf(stderr,"Searching 0,188 from %s ", s.base_left().str(binstr ) );
 			//fprintf(stderr,"to %s\n", s.base_right().str(binstr ) );
 
-			got = ubinmap_t::find_complement(data, filter, s, twist).base_left();
+			got = find_complement(data, filter, s, twist).base_left();
 			CHECK_EQUAL_BIN_T(bin_t(0,190),got);
 			CHECK_EQUAL(true,s.contains(got));
 		}

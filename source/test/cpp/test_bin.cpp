@@ -111,6 +111,7 @@ UNITTEST_SUITE_BEGIN(bin)
 
 		UNITTEST_TEST(to_root)
 		{
+			u32 bl1 = bin_t(5,0).base_length();
 			bin_t root1 = bin_t::to_root(30);
 			CHECK_EQUAL_BIN_T(bin_t(5,0), root1);
 

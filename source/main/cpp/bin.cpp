@@ -1,3 +1,4 @@
+#include "xbase/x_integer.h" 
 #include "xbinmaps/bin.h"
 
 namespace xcore
@@ -131,19 +132,15 @@ namespace xcore
 		// compute power-of-2 ceiling of @max_layer0_bin
 		// divide this by 2 and subtract 1, use this as
 		// a value to construct a bin_t
-		uint_t v = max_layer0_bin;
-
-		v--;
+		uint_t v = max_layer0_bin - 1;
 		v |= v >> 1;
 		v |= v >> 2;
 		v |= v >> 4;
 		v |= v >> 8;
 		v |= v >> 16;
 		v |= v >> 32;
-
-		bin_t root(v);
-
-		return root;
+		v++;
+		return bin_t(v - 1);
 	}
 
 

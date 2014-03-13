@@ -1,4 +1,5 @@
 #include "xbase\x_debug.h"
+#include "xbase\x_memory_std.h"
 #include "xbinmaps\binmap.h"
 #include "xbinmaps\bin.h"
 #include "xbinmaps\utils.h"
@@ -6,49 +7,42 @@
 
 using namespace xcore;
 
-
 extern xcore::x_iallocator* gTestAllocator;
-
-class my_cell_allocator : public binmap_t::allocator
-{
-public:
-	my_cell_allocator()
-	{
-	}
-
-	virtual void*			allocate(xsize_t size, u32 align)
-	{
-		void* p = gTestAllocator->allocate(size, align);
-		return p;
-	}
-
-	virtual void			deallocate(void* p)
-	{
-		gTestAllocator->deallocate(p);
-	}
-};
 
 
 UNITTEST_SUITE_BEGIN(binmap)
 {
 	UNITTEST_FIXTURE(main)
 	{
-		static my_cell_allocator ma;
-		static binmap_t::allocator* a = NULL;
+		xbyte* data1 = NULL;
+		xbyte* data2 = NULL;
+		u32 data_size = 0;
 
 		UNITTEST_FIXTURE_SETUP() 
 		{
-			a = &ma;
+			data_size = binmaps::data::size_for(bin_t::to_root(1<<24));
+			data1 = (xbyte*)gTestAllocator->allocate(data_size, sizeof(void*));
+			data2 = (xbyte*)gTestAllocator->allocate(data_size, sizeof(void*));
 		}
 		UNITTEST_FIXTURE_TEARDOWN() 
 		{
-			a = NULL;
+			gTestAllocator->deallocate(data1);
+			gTestAllocator->deallocate(data2);
+		}
+
+		void clear_data()
+		{
+			x_memzero(data1, data_size);
+			x_memzero(data2, data_size);
 		}
 
 		UNITTEST_TEST(SetGet) 
 		{
-			binmap_t bs;
-			bs.init(16, a);
+			clear_data();
+
+			u32 const n = 16;
+			binmaps::binmap bs(binmaps::user_data(bin_t::to_root(n), data1));
+
 			bin_t b3(1,0), b2(0,1), b4(0,2), b6(1,1), b7(2,0);
 			bs.set(b3);
 			//bs.dump("set done");
@@ -69,29 +63,33 @@ UNITTEST_SUITE_BEGIN(binmap)
 
 		UNITTEST_TEST(Clear) 
 		{
-			binmap_t m;
-			m.init(256, a);
+			clear_data();
+
+			u32 const n = 16;
+			binmaps::binmap bs(binmaps::user_data(bin_t::to_root(n), data1));
 
 			for(int i=0; i<256; i++)
 			{
 				if (i&1) 
 				{
-					m.set(bin_t(0,i));
+					bs.set(bin_t(0,i));
 				}
 				else 
 				{
-					m.reset(bin_t(0,i));
+					bs.reset(bin_t(0,i));
 				}
 			}
-			CHECK_FALSE(m.is_empty());
-			m.clear();
-			CHECK_TRUE(m.is_empty());
+			CHECK_FALSE(bs.is_empty());
+			bs.clear();
+			CHECK_TRUE(bs.is_empty());
 		}
 
 		UNITTEST_TEST(Chess) 
 		{
-			binmap_t chess16;
-			chess16.init(32, a);
+			clear_data();
+
+			u32 const n = 32;
+			binmaps::binmap chess16(binmaps::user_data(bin_t::to_root(n), data1));
 
 			for(int i=0; i<16; i++)
 			{
@@ -128,9 +126,11 @@ UNITTEST_SUITE_BEGIN(binmap)
 
 		UNITTEST_TEST(Staircase) 
 		{
+			clear_data();
+
 			const int TOPLAYR = 24;
-			binmap_t staircase;
-			staircase.init(1 << 25, a);
+			u32 const n = 1 << TOPLAYR;
+			binmaps::binmap staircase(binmaps::user_data(bin_t::to_root(n), data1));
 
 			for(int i=0;i<TOPLAYR;i++)
 				staircase.set(bin_t(i,1));
@@ -144,8 +144,10 @@ UNITTEST_SUITE_BEGIN(binmap)
 
 		UNITTEST_TEST(Hole)
 		{
-			binmap_t hole;
-			hole.init(1 << 8, a);
+			clear_data();
+
+			u32 const n = 1 << 8;
+			binmaps::binmap hole(binmaps::user_data(bin_t::to_root(n), data1));
 
 			hole.set(bin_t(8,0));
 			CHECK_TRUE(hole.is_filled());
@@ -186,8 +188,10 @@ UNITTEST_SUITE_BEGIN(binmap)
 
 		UNITTEST_TEST(Find)
 		{
-			binmap_t hole;
-			hole.init(1 << 5, a);
+			clear_data();
+
+			u32 const n = 1 << 5;
+			binmaps::binmap hole(binmaps::user_data(bin_t::to_root(n), data1));
 
 			hole.set(bin_t(4,0));
 			hole.reset(bin_t(1,1));
@@ -199,8 +203,10 @@ UNITTEST_SUITE_BEGIN(binmap)
 
 		UNITTEST_TEST(Alloc) 
 		{
-			binmap_t b;
-			b.init(64, a);
+			clear_data();
+
+			u32 const n = 64;
+			binmaps::binmap b(binmaps::user_data(bin_t::to_root(n), data1));
 
 			b.set(bin_t(1,0));
 			b.set(bin_t(1,1));
@@ -210,9 +216,11 @@ UNITTEST_SUITE_BEGIN(binmap)
 
 		UNITTEST_TEST(FindFiltered) 
 		{
-			binmap_t data, filter;
-			data.init(64, a);
-			filter.init(64, a);
+			clear_data();
+
+			u32 const n = 64;
+			binmaps::binmap data(binmaps::user_data(bin_t::to_root(n), data1));
+			binmaps::binmap filter(binmaps::user_data(bin_t::to_root(n), data2));
 
 			data.set(bin_t(2,0));
 			data.set(bin_t(2,2));
@@ -237,14 +245,16 @@ UNITTEST_SUITE_BEGIN(binmap)
 			CHECK_TRUE(filter.is_filled(bin_t(0,11)));
 
 			// Find first additional bin in @filter
-			bin_t x = ubinmap_t::find_complement(data, filter, bin_t(4,0), 0);
+			bin_t x = binmaps::find_complement(data, filter, bin_t(4,0), 0);
 			CHECK_EQUAL(bin_t(0,12).value(),x.value());
 		}
 
 		UNITTEST_TEST(Cover)
 		{
-			binmap_t b;
-			b.init(64, a);
+			clear_data();
+
+			u32 const n = 64;
+			binmaps::binmap b(binmaps::user_data(bin_t::to_root(n), data1));
 
 			b.set(bin_t(2,0));
 			b.set(bin_t(4,1));
@@ -257,26 +267,28 @@ UNITTEST_SUITE_BEGIN(binmap)
 
 		UNITTEST_TEST(FindFiltered2) 
 		{
-			const s32 n = 1024;
-			binmap_t data, filter;
-			data.init(n, a);
-			filter.init(n, a);
+			clear_data();
+
+			u32 const n = 1024;
+			binmaps::binmap data(binmaps::user_data(bin_t::to_root(n), data1));
+			binmaps::binmap filter(binmaps::user_data(bin_t::to_root(n), data2));
 
 			for(int i=0; i<n; i+=2)
 				data.set(bin_t(0,i));
 			for(int j=0; j<n; j+=2)
 				filter.set(bin_t(0,j));
 			data.reset(bin_t(0,500));
-			CHECK_EQUAL(bin_t(0,500).value(),ubinmap_t::find_complement(data, filter, bin_t(10,0), 0).base_left().value());
+			CHECK_EQUAL(bin_t(0,500).value(),binmaps::find_complement(data, filter, bin_t(10,0), 0).base_left().value());
 			data.set(bin_t(0,500));
-			CHECK_EQUAL(bin_t::NONE.value(),ubinmap_t::find_complement(data, filter, bin_t(10,0), 0).base_left().value());
+			CHECK_EQUAL(bin_t::NONE.value(),binmaps::find_complement(data, filter, bin_t(10,0), 0).base_left().value());
 		}
 	
 		UNITTEST_TEST(CopyRange) 
 		{
-			binmap_t data, add;
-			data.init(64, a);
-			add.init(4096, a);
+			clear_data();
+
+			binmaps::binmap data(binmaps::user_data(bin_t::to_root(64), data1));
+			binmaps::binmap add(binmaps::user_data(bin_t::to_root(4096), data2));
 
 			data.set(bin_t(2,0));
 			data.set(bin_t(2,2));
@@ -285,7 +297,7 @@ UNITTEST_SUITE_BEGIN(binmap)
 			add.set(bin_t(1,4));
 			add.set(bin_t(0,13));
 			add.set(bin_t(5,118));
-			ubinmap_t::copy(data, add, bin_t(3,0));
+			binmaps::copy(data, add, bin_t(3,0));
 			CHECK_FALSE(data.is_empty(bin_t(3,0)));
 			CHECK_FALSE(data.is_filled(bin_t(3,0)));
 			CHECK_TRUE(data.is_empty(bin_t(2,0)));
@@ -296,8 +308,10 @@ UNITTEST_SUITE_BEGIN(binmap)
 
 		UNITTEST_TEST(SeqLength) 
 		{
-			binmap_t b;
-			b.init(32, a);
+			clear_data();
+
+			u32 const n = 32;
+			binmaps::binmap b(binmaps::user_data(bin_t::to_root(n), data1));
 
 			b.set(bin_t(3,0));
 			b.set(bin_t(1,4));
@@ -308,9 +322,11 @@ UNITTEST_SUITE_BEGIN(binmap)
 
 		UNITTEST_TEST(EmptyFilled) 
 		{
+			clear_data();
+
 			// 1112 3312  2111 ....
-			binmap_t b;
-			b.init(64, a);
+			u32 const n = 64;
+			binmaps::binmap b(binmaps::user_data(bin_t::to_root(n), data1));
 	
 			CHECK_TRUE(b.is_empty(bin_t::ALL));
 	
