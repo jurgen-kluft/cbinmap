@@ -96,6 +96,8 @@ namespace xcore
 		bin_t			twisted(uint_t mask) const;
 		bin_t			layer_shifted(s32 zlayer) const;
 
+		static bin_t	to_root(uint_t max_layer0_bin);
+
 		const char*		str(char* buf) const;
 
 	private:

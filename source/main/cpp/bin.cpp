@@ -126,6 +126,27 @@ namespace xcore
 	} /* namespace */
 
 
+	bin_t	bin_t::to_root(uint_t max_layer0_bin)
+	{
+		// compute power-of-2 ceiling of @max_layer0_bin
+		// divide this by 2 and subtract 1, use this as
+		// a value to construct a bin_t
+		uint_t v = max_layer0_bin;
+
+		v--;
+		v |= v >> 1;
+		v |= v >> 2;
+		v |= v >> 4;
+		v |= v >> 8;
+		v |= v >> 16;
+		v |= v >> 32;
+
+		bin_t root(v);
+
+		return root;
+	}
+
+
 	/**
 	* Get the standard-form of this bin, e.g. "(2,1)".
 	* (buffer should have enough of space)

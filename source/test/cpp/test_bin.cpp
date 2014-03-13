@@ -4,6 +4,9 @@
 
 using namespace xcore;
 
+#define CHECK_EQUAL_BIN_T(a, b) CHECK_EQUAL(a.value(), b.value());
+
+
 UNITTEST_SUITE_BEGIN(bin)
 {
 	UNITTEST_FIXTURE(main)
@@ -104,6 +107,18 @@ UNITTEST_SUITE_BEGIN(bin)
 			CHECK_EQUAL(0x7fffffff,a32);
 			CHECK_EQUAL(0xffffffff,n32);
 			CHECK_EQUAL(bin_t::NONE.value(),bin_fromUInt32(b32).value());
+		}
+
+		UNITTEST_TEST(to_root)
+		{
+			bin_t root1 = bin_t::to_root(30);
+			CHECK_EQUAL_BIN_T(bin_t(5,0), root1);
+
+			bin_t root2 = bin_t::to_root(1000);
+			CHECK_EQUAL_BIN_T(bin_t(10,0), root2);
+
+			bin_t root3 = bin_t::to_root(300);
+			CHECK_EQUAL_BIN_T(bin_t(9,0), root3);
 		}
 	}
 }

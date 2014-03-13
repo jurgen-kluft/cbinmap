@@ -145,7 +145,7 @@ UNITTEST_SUITE_BEGIN(binmap)
 		UNITTEST_TEST(Hole)
 		{
 			binmap_t hole;
-			hole.init(bin_t(8,0), a);
+			hole.init(1 << 8, a);
 
 			hole.set(bin_t(8,0));
 			CHECK_TRUE(hole.is_filled());
@@ -237,7 +237,7 @@ UNITTEST_SUITE_BEGIN(binmap)
 			CHECK_TRUE(filter.is_filled(bin_t(0,11)));
 
 			// Find first additional bin in @filter
-			bin_t x = binmap_t::find_complement(data, filter, bin_t(4,0), 0);
+			bin_t x = ubinmap_t::find_complement(data, filter, bin_t(4,0), 0);
 			CHECK_EQUAL(bin_t(0,12).value(),x.value());
 		}
 
@@ -259,17 +259,17 @@ UNITTEST_SUITE_BEGIN(binmap)
 		{
 			const s32 n = 1024;
 			binmap_t data, filter;
-			data.init(bin_t(0,n), a);
-			filter.init(bin_t(0,n), a);
+			data.init(n, a);
+			filter.init(n, a);
 
 			for(int i=0; i<n; i+=2)
 				data.set(bin_t(0,i));
 			for(int j=0; j<n; j+=2)
 				filter.set(bin_t(0,j));
 			data.reset(bin_t(0,500));
-			CHECK_EQUAL(bin_t(0,500).value(),binmap_t::find_complement(data, filter, bin_t(10,0), 0).base_left().value());
+			CHECK_EQUAL(bin_t(0,500).value(),ubinmap_t::find_complement(data, filter, bin_t(10,0), 0).base_left().value());
 			data.set(bin_t(0,500));
-			CHECK_EQUAL(bin_t::NONE.value(),binmap_t::find_complement(data, filter, bin_t(10,0), 0).base_left().value());
+			CHECK_EQUAL(bin_t::NONE.value(),ubinmap_t::find_complement(data, filter, bin_t(10,0), 0).base_left().value());
 		}
 	
 		UNITTEST_TEST(CopyRange) 
@@ -285,7 +285,7 @@ UNITTEST_SUITE_BEGIN(binmap)
 			add.set(bin_t(1,4));
 			add.set(bin_t(0,13));
 			add.set(bin_t(5,118));
-			binmap_t::copy(data, add, bin_t(3,0));
+			ubinmap_t::copy(data, add, bin_t(3,0));
 			CHECK_FALSE(data.is_empty(bin_t(3,0)));
 			CHECK_FALSE(data.is_filled(bin_t(3,0)));
 			CHECK_TRUE(data.is_empty(bin_t(2,0)));

@@ -6,15 +6,26 @@
 
 namespace xcore
 {
+	/**
+	* Constructor
+	*/
+	const_binmap_t::const_binmap_t()
+		: binroot_(0)
+		, binmap1_(0)
+		, binmap0_(0)
+	{
+
+	}
+
+
+
 
 	/**
 	* Constructor
 	*/
 	binmap_t::binmap_t()
-		: allocator_(0)
-		, binroot_(0)
-		, binmap1_(0)
-		, binmap0_(0)
+		: const_binmap_t()
+		, allocator_(0)
 	{
 
 	}
@@ -31,15 +42,13 @@ namespace xcore
 	/**
 	* Initialization of a binmap
 	*/
-	void binmap_t::init(const bin_t& _bin, allocator* _allocator)
+	void binmap_t::init(const u32 _maxbin, allocator* _allocator)
 	{
 		ASSERT(allocator_ == NULL);
 		ASSERT(binmap1_ == NULL);
 		ASSERT(binmap0_ == NULL);
 
-		bin_t root = _bin;
-		while (root.layer_offset() > 0)
-			root.to_parent();
+		bin_t root = bin_t::to_root(_maxbin);
 		ASSERT(root.base_length() >= 2);
 
 		u32 const binmap_size = (u32)(((root.base_length() * 2) + 7) / 8);
@@ -77,7 +86,7 @@ namespace xcore
 	/**
 	* Whether binmap is empty
 	*/
-	bool binmap_t::is_empty() const
+	bool const_binmap_t::is_empty() const
 	{
 		bool const r = read_value0_at(*binroot_);
 		return !r;
@@ -87,7 +96,7 @@ namespace xcore
 	/**
 	* Whether binmap is filled
 	*/
-	bool binmap_t::is_filled() const
+	bool const_binmap_t::is_filled() const
 	{
 		return is_filled(*binroot_);
 	}
@@ -96,7 +105,7 @@ namespace xcore
 	/**
 	* Whether range/bin is empty
 	*/
-	bool binmap_t::is_empty(const bin_t& bin) const
+	bool const_binmap_t::is_empty(const bin_t& bin) const
 	{
 		bool r = false;
 		if (bin == bin_t::ALL)
@@ -115,7 +124,7 @@ namespace xcore
 	/**
 	* Whether range/bin is filled
 	*/
-	bool binmap_t::is_filled(const bin_t& bin) const
+	bool const_binmap_t::is_filled(const bin_t& bin) const
 	{
 		bool v = false;
 		if (bin == bin_t::ALL)
@@ -134,7 +143,7 @@ namespace xcore
 	/**
 	* Return the topmost solid bin which covers the specified bin
 	*/
-	bin_t binmap_t::cover(const bin_t& bin) const
+	bin_t const_binmap_t::cover(const bin_t& bin) const
 	{
 		bin_t i(bin);
 		bool v = read_value1_at(i);
@@ -156,7 +165,7 @@ namespace xcore
 	/**
 	* Find first empty bin
 	*/
-	bin_t binmap_t::find_empty() const
+	bin_t const_binmap_t::find_empty() const
 	{
 		return find_empty(*binroot_);
 	}
@@ -165,7 +174,7 @@ namespace xcore
 	/**
 	* Find first filled bin
 	*/
-	bin_t binmap_t::find_filled() const
+	bin_t const_binmap_t::find_filled() const
 	{
 		// Can we can find a filled bin in this sub-tree?
 		if (read_value0_at(*binroot_)==false)
@@ -191,7 +200,7 @@ namespace xcore
 	/**
 	* Find first empty bin right of start (start inclusive)
 	*/
-	bin_t binmap_t::find_empty(bin_t start) const
+	bin_t const_binmap_t::find_empty(bin_t start) const
 	{
 		ASSERT(start != bin_t::ALL);
 
@@ -262,12 +271,12 @@ namespace xcore
 	* @param source
 	*             the source binmap
 	*/
-	bin_t binmap_t::find_complement(const binmap_t& destination, const binmap_t& source, const bin_t::uint_t twist)
+	bin_t ubinmap_t::find_complement(const const_binmap_t& destination, const const_binmap_t& source, const bin_t::uint_t twist)
 	{
 		return find_complement(destination, source, *source.binroot_, twist);
 	}
 
-	bin_t binmap_t::find_complement(const binmap_t& destination, const binmap_t& source, bin_t range, const bin_t::uint_t twist)
+	bin_t ubinmap_t::find_complement(const const_binmap_t& destination, const const_binmap_t& source, bin_t range, const bin_t::uint_t twist)
 	{
 		ASSERT(source.binroot_->contains(range));
 		ASSERT(destination.binroot_->contains(range));
@@ -610,7 +619,7 @@ namespace xcore
 	/**
 	* Get total size of the binmap
 	*/
-	size_t binmap_t::total_size() const
+	size_t const_binmap_t::total_size() const
 	{
 		u32 const binmap_size = (u32)(((binroot_->base_length() * 2) + 7) / 8);
 		return sizeof(binmap_t) + binmap_size + binmap_size;
@@ -651,7 +660,7 @@ namespace xcore
 	/**
 	* Copy a binmap to another
 	*/
-	void binmap_t::copy(binmap_t& destination, const binmap_t& source)
+	void ubinmap_t::copy(binmap_t& destination, const const_binmap_t& source)
 	{
 		ASSERT(*source.binroot_ != bin_t::NONE);
 		ASSERT(*source.binroot_ == *destination.binroot_);
@@ -664,7 +673,7 @@ namespace xcore
 	/**
 	* Copy a range from one binmap to another binmap
 	*/
-	void binmap_t::copy(binmap_t& destination, const binmap_t& source, const bin_t& range)
+	void ubinmap_t::copy(binmap_t& destination, const const_binmap_t& source, const bin_t& range)
 	{
 		if (!source.read_value0_at(range))
 		{

@@ -8,30 +8,11 @@
 namespace xcore 
 {
 	// 
-	// binmap class
+	// const binmap class
 	// 
-	class binmap_t
+	class const_binmap_t
 	{
 	public:
-		class allocator
-		{
-		public:
-			virtual void*	allocate(xsize_t _size, u32 _alignment) = 0;
-			virtual void	deallocate(void*) = 0;
-		};
-
-						binmap_t();
-						~binmap_t();
-
-		void			init(const u32   bins, allocator* _allocator);
-		void			init(const bin_t& bin, allocator* _allocator);
-
-		void			set(const bin_t& bin);
-		void			reset(const bin_t& bin);
-
-		void			clear();
-		void			fill();
-
 		bool			is_empty() const;
 		bool			is_filled() const;
 
@@ -45,20 +26,53 @@ namespace xcore
 		bin_t			find_empty(bin_t start) const;
 
 		size_t			total_size() const;
+
+	protected:
+						const_binmap_t();
+						const_binmap_t(const const_binmap_t&) {}
+
+		friend class ubinmap_t;
+
+		bool			read_value1_at(bin_t) const;
+		bool			read_value0_at(bin_t) const;
+
+		bin_t*			binroot_;
+		xbyte*			binmap1_;				// the AND binmap with bit '0' = empty, bit '1' = full, parent = [left-child] & [right-child]
+		xbyte*			binmap0_;				// the  OR binmap with bit '0' = empty, bit '1' = full, parent = [left-child] | [right-child]
+	};
+
+	// 
+	// binmap class
+	// 
+	class binmap_t: public const_binmap_t
+	{
+	public:
+		class allocator
+		{
+		public:
+			virtual void*	allocate(xsize_t _size, u32 _alignment) = 0;
+			virtual void	deallocate(void*) = 0;
+		};
+
+						binmap_t();
+						~binmap_t();
+
+		void			init(const u32   bins, allocator* _allocator);
+
+		void			set(const bin_t& bin);
+		void			reset(const bin_t& bin);
+
+		void			clear();
+		void			fill();
+
 		void			status() const;
 
-		static bin_t	find_complement(const binmap_t& destination, const binmap_t& source, const bin_t::uint_t twist);
-		static bin_t	find_complement(const binmap_t& destination, const binmap_t& source, bin_t range, const bin_t::uint_t twist);
+	protected:
+		friend class ubinmap_t;
 
-		static void		copy(binmap_t& destination, const binmap_t& source);
-		static void		copy(binmap_t& destination, const binmap_t& source, const bin_t& range);
-
-	private:
-		bool			read_value1_at(bin_t) const;
 		s32				write_value1_at(bin_t, bool);
 		bool			update_value1_at(bin_t, bool);
 
-		bool			read_value0_at(bin_t) const;
 		s32				write_value0_at(bin_t, bool);
 		bool			update_value0_at(bin_t, bool);
 
@@ -66,23 +80,27 @@ namespace xcore
 
 		allocator*		allocator_;
 
-		bin_t*			binroot_;
-		xbyte*			binmap1_;				// the AND binmap with bit '0' = empty, bit '1' = full, parent = [left-child] & [right-child]
-		xbyte*			binmap0_;				// the  OR binmap with bit '0' = empty, bit '1' = full, parent = [left-child] | [right-child]
-
 		binmap_t&		operator = (const binmap_t&);
 						binmap_t(const binmap_t&);
 	};
 
-	inline void binmap_t::init(const u32   bins, allocator* _allocator)
+	// 
+	// binmap utility, static functions 
+	// 
+	class ubinmap_t
 	{
-		init(bin_t(0, bins-1), _allocator);
-	}
+	public:
+		static bin_t	find_complement(const const_binmap_t& destination, const const_binmap_t& source, const bin_t::uint_t twist);
+		static bin_t	find_complement(const const_binmap_t& destination, const const_binmap_t& source, bin_t range, const bin_t::uint_t twist);
+
+		static void		copy(binmap_t& destination, const const_binmap_t& source);
+		static void		copy(binmap_t& destination, const const_binmap_t& source, const bin_t& range);
+	};
 
 	/**
 	* Return the current root of the binmap
 	*/
-	inline bin_t binmap_t::root() const
+	inline bin_t const_binmap_t::root() const
 	{
 		return binroot_!=NULL ? *binroot_ : bin_t::NONE;
 	}
@@ -90,7 +108,7 @@ namespace xcore
 	/**
 	* Get the value of bin_
 	*/
-	inline bool	binmap_t::read_value1_at(bin_t _bin) const
+	inline bool	const_binmap_t::read_value1_at(bin_t _bin) const
 	{
 		ASSERT(binroot_->contains(_bin));
 		xbyte const* byte = binmap1_ + (_bin.value() >> 3);
@@ -128,7 +146,7 @@ namespace xcore
 	/**
 	* Get the value of bin_
 	*/
-	inline bool	binmap_t::read_value0_at(bin_t _bin) const
+	inline bool	const_binmap_t::read_value0_at(bin_t _bin) const
 	{
 		ASSERT(binroot_->contains(_bin));
 		xbyte const* byte = binmap0_ + (_bin.value() >> 3);
