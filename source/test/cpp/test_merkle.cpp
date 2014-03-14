@@ -34,7 +34,7 @@ public:
 	}
 };
 
-static void	sSigCombiner(merkle::hash_t const& lhs, merkle::hash_t const& rhs, merkle::hash_t& result)
+static void	combine(merkle::hash_t const& lhs, merkle::hash_t const& rhs, merkle::hash_t& result)
 {
 	ASSERT(lhs.length_ == rhs.length_);
 	ASSERT(lhs.length_ == result.length_);
@@ -123,7 +123,7 @@ UNITTEST_SUITE_BEGIN(merkle)
 			merkle::hash_t rootSignature;
 			a.allocate(rootSignature);
 
-			merkle::tree sm(merkle::user_data_t(bin_t::to_root(32), sizeof(hash256), data1), rootSignature, sSigCombiner);
+			merkle::tree sm(merkle::user_data_t(bin_t::to_root(32), sizeof(hash256), data1), rootSignature, combine);
 
 			a.deallocate(rootSignature);
 		}
@@ -139,9 +139,9 @@ UNITTEST_SUITE_BEGIN(merkle)
 
 			merkle::hash_t lhs(&digests[0], rootSignature.length_);
 			merkle::hash_t rhs(&digests[1], rootSignature.length_);
-			sSigCombiner(lhs, rhs, rootSignature);
+			combine(lhs, rhs, rootSignature);
 
-			merkle::tree::builder smb(merkle::user_data_t(bin_t::to_root(2), sizeof(hash256), data1), rootSignature, sSigCombiner);
+			merkle::tree::builder smb(merkle::user_data_t(bin_t::to_root(2), sizeof(hash256), data1), rootSignature, combine);
 
 			// submit two signatures, they will be merged
 			merkle::hash_t signature1(&digests[0], rootSignature.length_);
@@ -177,13 +177,13 @@ UNITTEST_SUITE_BEGIN(merkle)
 			{
 				for (s32 i=0; i<w; i+=2)
 				{
-					sSigCombiner(signatures[i], signatures[i+1], signatures[i/2]);
+					combine(signatures[i], signatures[i+1], signatures[i/2]);
 				}
 			}
 			// The signature at index 0 is the root signature
 			x_memcpy(rootSignature.digest_, signatures[0].digest_, rootSignature.length_);
 
-			merkle::tree::builder smb(merkle::user_data_t(bin_t::to_root(length), sizeof(hash256), data1), rootSignature, sSigCombiner);
+			merkle::tree::builder smb(merkle::user_data_t(bin_t::to_root(length), sizeof(hash256), data1), rootSignature, combine);
 			for (s32 i=0; i<length; ++i)
 			{
 				merkle::hash_t signature1(&digests[i], rootSignature.length_);
@@ -202,7 +202,7 @@ UNITTEST_SUITE_BEGIN(merkle)
 			merkle::hash_t rootSignature;
 			a.allocate(rootSignature);
 
-			merkle::tree::builder smb(merkle::user_data_t(bin_t::to_root(32), sizeof(hash256), data1), rootSignature, sSigCombiner);
+			merkle::tree::builder smb(merkle::user_data_t(bin_t::to_root(32), sizeof(hash256), data1), rootSignature, combine);
 			for (s32 i=0; i<512; ++i)
 			{
 				merkle::hash_t signature1(&digests[i], rootSignature.length_);
@@ -212,14 +212,14 @@ UNITTEST_SUITE_BEGIN(merkle)
 			a.deallocate(rootSignature);
 		}
 
-		UNITTEST_TEST(open_submitbranch_close)
+		UNITTEST_TEST(open_readbranch_close)
 		{
 			clear_data();
 			merkle::hash_t rootSignature;
 			a.allocate(rootSignature);
 
 			merkle::user_data_t sigdata(bin_t::to_root(32), sizeof(hash256), data1);
-			merkle::tree::builder smb(sigdata, rootSignature, sSigCombiner);
+			merkle::tree::builder smb(sigdata, rootSignature, combine);
 
 			// A branch starts at the root and goes down to the bin at the base level.
 			// The signatures that are emitted along the way are:
@@ -233,7 +233,7 @@ UNITTEST_SUITE_BEGIN(merkle)
 			}
 			CHECK_TRUE(smb.build());
 
-			merkle::tree sm(sigdata, rootSignature, sSigCombiner);
+			merkle::tree sm(sigdata, rootSignature, combine);
 
 			const s32 max_branch_signatures = 5 + 1;
 			// manually compute the root signature according to the merkle signature scheme
