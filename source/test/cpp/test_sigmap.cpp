@@ -21,20 +21,20 @@ public:
 		sizeof_sig  = sizeof(hash256);
 	}
 
-	virtual void	allocate(sigmap::signature_t& s)
+	virtual void	allocate(merkle::hash_t& s)
 	{
 		s.length_ = sizeof_sig;
 		s.digest_ = (xbyte*)gTestAllocator->allocate(s.length_, 4);
 	}
 
-	virtual void	deallocate(sigmap::signature_t& s)
+	virtual void	deallocate(merkle::hash_t& s)
 	{
 		gTestAllocator->deallocate(s.digest_);
 		s.digest_ = 0;
 	}
 };
 
-static void	sSigCombiner(sigmap::signature_t const& lhs, sigmap::signature_t const& rhs, sigmap::signature_t& result)
+static void	sSigCombiner(merkle::hash_t const& lhs, merkle::hash_t const& rhs, merkle::hash_t& result)
 {
 	ASSERT(lhs.length_ == rhs.length_);
 	ASSERT(lhs.length_ == result.length_);
@@ -83,7 +83,7 @@ static xbyte digests[] =
 	0x41, 0x39, 0xF8, 0xB3, 0x6C, 0x82, 0x09, 0x08, 0x53, 0xE1, 0x51, 0x1E, 0xE1, 0x7F, 0x45, 0xBB, 0x68, 0x1C, 0xE1, 0x58, 0x79, 0x3C, 0x6D, 0x32, 0xBC, 0x1B, 0xE7, 0xD7, 0xAD, 0x3B, 0x3F, 0xD1
 };
 
-UNITTEST_SUITE_BEGIN(sigmap)
+UNITTEST_SUITE_BEGIN(merkle)
 {
 	UNITTEST_FIXTURE(main)
 	{
@@ -94,7 +94,7 @@ UNITTEST_SUITE_BEGIN(sigmap)
 
 		UNITTEST_FIXTURE_SETUP()
 		{
-			data_size = sigmap::data::size_for(bin_t::to_root(8000), sizeof(hash256));
+			data_size = merkle::data_t::size_for(bin_t::to_root(8000), sizeof(hash256));
 			data1 = (xbyte*)gTestAllocator->allocate(data_size, sizeof(void*));
 			data2 = (xbyte*)gTestAllocator->allocate(data_size, sizeof(void*));
 		}
@@ -113,17 +113,17 @@ UNITTEST_SUITE_BEGIN(sigmap)
 
 		UNITTEST_TEST(construct)
 		{
-			sigmap::map sm;
+			merkle::tree sm;
 		}
 
 		UNITTEST_TEST(open_close)
 		{
 			clear_data();
 
-			sigmap::signature_t rootSignature;
+			merkle::hash_t rootSignature;
 			a.allocate(rootSignature);
 
-			sigmap::map sm(sigmap::user_data(bin_t::to_root(32), sizeof(hash256), data1), rootSignature, sSigCombiner);
+			merkle::tree sm(merkle::user_data_t(bin_t::to_root(32), sizeof(hash256), data1), rootSignature, sSigCombiner);
 
 			a.deallocate(rootSignature);
 		}
@@ -134,20 +134,20 @@ UNITTEST_SUITE_BEGIN(sigmap)
 
 			my_sigmap_allocator a;
 
-			sigmap::signature_t rootSignature;
+			merkle::hash_t rootSignature;
 			a.allocate(rootSignature);
 
-			sigmap::signature_t lhs(&digests[0], rootSignature.length_);
-			sigmap::signature_t rhs(&digests[1], rootSignature.length_);
+			merkle::hash_t lhs(&digests[0], rootSignature.length_);
+			merkle::hash_t rhs(&digests[1], rootSignature.length_);
 			sSigCombiner(lhs, rhs, rootSignature);
 
-			sigmap::map::builder smb(sigmap::user_data(bin_t::to_root(2), sizeof(hash256), data1), rootSignature, sSigCombiner);
+			merkle::tree::builder smb(merkle::user_data_t(bin_t::to_root(2), sizeof(hash256), data1), rootSignature, sSigCombiner);
 
 			// submit two signatures, they will be merged
-			sigmap::signature_t signature1(&digests[0], rootSignature.length_);
-			CHECK_EQUAL(1, smb.submit(bin_t(0, 0), signature1));
-			sigmap::signature_t signature2(&digests[1], rootSignature.length_);
-			CHECK_EQUAL(1, smb.submit(bin_t(0, 1), signature2));
+			merkle::hash_t signature1(&digests[0], rootSignature.length_);
+			CHECK_EQUAL(1, smb.write(bin_t(0, 0), signature1));
+			merkle::hash_t signature2(&digests[1], rootSignature.length_);
+			CHECK_EQUAL(1, smb.write(bin_t(0, 1), signature2));
 
 			CHECK_TRUE(smb.build());
 			CHECK_TRUE(smb.build_and_verify(rootSignature));
@@ -160,13 +160,13 @@ UNITTEST_SUITE_BEGIN(sigmap)
 			clear_data();
 			my_sigmap_allocator a;
 
-			sigmap::signature_t rootSignature;
+			merkle::hash_t rootSignature;
 			a.allocate(rootSignature);
 
 			const s32 length = 512;
 			// manually compute the root signature according to the merkle signature scheme
 			xbyte	digests_data[length][32];
-			sigmap::signature_t signatures[length];
+			merkle::hash_t signatures[length];
 			for (s32 i=0; i<length; ++i)
 			{
 				signatures[i].digest_ = digests_data[i];
@@ -183,11 +183,11 @@ UNITTEST_SUITE_BEGIN(sigmap)
 			// The signature at index 0 is the root signature
 			x_memcpy(rootSignature.digest_, signatures[0].digest_, rootSignature.length_);
 
-			sigmap::map::builder smb(sigmap::user_data(bin_t::to_root(length), sizeof(hash256), data1), rootSignature, sSigCombiner);
+			merkle::tree::builder smb(merkle::user_data_t(bin_t::to_root(length), sizeof(hash256), data1), rootSignature, sSigCombiner);
 			for (s32 i=0; i<length; ++i)
 			{
-				sigmap::signature_t signature1(&digests[i], rootSignature.length_);
-				CHECK_EQUAL(1, smb.submit(bin_t(0, i), signature1));
+				merkle::hash_t signature1(&digests[i], rootSignature.length_);
+				CHECK_EQUAL(1, smb.write(bin_t(0, i), signature1));
 			}
 
 			CHECK_TRUE(smb.build());
@@ -199,14 +199,14 @@ UNITTEST_SUITE_BEGIN(sigmap)
 		UNITTEST_TEST(open_builder_close)
 		{
 			clear_data();
-			sigmap::signature_t rootSignature;
+			merkle::hash_t rootSignature;
 			a.allocate(rootSignature);
 
-			sigmap::map::builder smb(sigmap::user_data(bin_t::to_root(32), sizeof(hash256), data1), rootSignature, sSigCombiner);
+			merkle::tree::builder smb(merkle::user_data_t(bin_t::to_root(32), sizeof(hash256), data1), rootSignature, sSigCombiner);
 			for (s32 i=0; i<512; ++i)
 			{
-				sigmap::signature_t signature1(&digests[i], rootSignature.length_);
-				smb.submit(bin_t(0, i), signature1);
+				merkle::hash_t signature1(&digests[i], rootSignature.length_);
+				smb.write(bin_t(0, i), signature1);
 			}
 
 			a.deallocate(rootSignature);
@@ -215,11 +215,11 @@ UNITTEST_SUITE_BEGIN(sigmap)
 		UNITTEST_TEST(open_submitbranch_close)
 		{
 			clear_data();
-			sigmap::signature_t rootSignature;
+			merkle::hash_t rootSignature;
 			a.allocate(rootSignature);
 
-			sigmap::user_data sigdata(bin_t::to_root(32), sizeof(hash256), data1);
-			sigmap::map::builder smb(sigdata, rootSignature, sSigCombiner);
+			merkle::user_data_t sigdata(bin_t::to_root(32), sizeof(hash256), data1);
+			merkle::tree::builder smb(sigdata, rootSignature, sSigCombiner);
 
 			// A branch starts at the root and goes down to the bin at the base level.
 			// The signatures that are emitted along the way are:
@@ -228,24 +228,24 @@ UNITTEST_SUITE_BEGIN(sigmap)
 			// 3. The signature of the designated bin
 			for (s32 i=0; i<8; ++i)
 			{
-				sigmap::signature_t signature1(&digests[i], rootSignature.length_);
-				smb.submit(bin_t(0, i), signature1);
+				merkle::hash_t signature1(&digests[i], rootSignature.length_);
+				smb.write(bin_t(0, i), signature1);
 			}
 			CHECK_TRUE(smb.build());
 
-			sigmap::map sm(sigdata, rootSignature, sSigCombiner);
+			merkle::tree sm(sigdata, rootSignature, sSigCombiner);
 
 			const s32 max_branch_signatures = 5 + 1;
 			// manually compute the root signature according to the merkle signature scheme
 			xbyte	digests_data[max_branch_signatures][32];
-			sigmap::signature_t branch_signatures[max_branch_signatures];
+			merkle::hash_t branch_signatures[max_branch_signatures];
 			for (s32 i=0; i<max_branch_signatures; ++i)
 			{
 				branch_signatures[i].digest_ = digests_data[i];
 				branch_signatures[i].length_ = rootSignature.length_;
 			}
-			sigmap::branch my_branch(branch_signatures, max_branch_signatures);
-			s32 const branch_len = sm.read_branch(bin_t(0,0), my_branch);
+			merkle::branch_t my_branch(branch_signatures, max_branch_signatures);
+			s32 const branch_len = sm.read(bin_t(0,0), my_branch);
 			CHECK_EQUAL(6, branch_len);
 
 			a.deallocate(rootSignature);

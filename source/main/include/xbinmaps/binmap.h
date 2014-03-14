@@ -11,13 +11,6 @@ namespace xcore
 	{
 		typedef		xbyte		byte;
 
-		class iallocator
-		{
-		public:
-			virtual void*	allocate(xsize_t _size, u32 _alignment) = 0;
-			virtual void	deallocate(void*) = 0;
-		};
-
 		class data
 		{
 		public:
@@ -95,15 +88,15 @@ namespace xcore
 			void			set(const bin_t& bin);
 			void			reset(const bin_t& bin);
 
+			void			copy_from(cbinmap const&);
+
+		protected:
 			s32				write_am_at(bin_t, bool);
 			bool			xchg_am_at(bin_t, bool);
 
 			s32				write_om_at(bin_t, bool);
 			bool			xchg_om_at(bin_t, bool);
 
-			void			copy_from(cbinmap const&);
-
-		protected:
 			binmap&			operator = (const binmap&);
 		};
 

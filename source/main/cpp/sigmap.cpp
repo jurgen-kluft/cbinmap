@@ -5,9 +5,9 @@
 
 namespace xcore
 {
-	namespace sigmap
+	namespace merkle
 	{
-		static inline bool is_zero(signature_t const& _src)
+		static inline bool is_zero(hash_t const& _src)
 		{
 			u32 const* src = (u32 const*)_src.digest_;
 			u32 const* end = (u32 const*)(_src.digest_ + _src.length_);
@@ -19,7 +19,7 @@ namespace xcore
 			return is_empty;
 		}
 
-		static inline void copy(signature_t& _dst, signature_t const& _src)
+		static inline void copy(hash_t& _dst, hash_t const& _src)
 		{
 			ASSERT(_src.length_ == _dst.length_);
 			ASSERT(_src.digest_ != NULL);
@@ -27,7 +27,7 @@ namespace xcore
 			x_memcopy4((u32*)_dst.digest_, (u32 const*)_src.digest_, _src.length_ / 4);
 		}
 
-		bool	are_signatures_equal (signature_t const& _a, signature_t const& _b)
+		bool	are_equal (hash_t const& _a, hash_t const& _b)
 		{
 			ASSERT(_a.length_ == _b.length_);
 			ASSERT(_a.digest_ != NULL);
@@ -45,7 +45,7 @@ namespace xcore
 			return equal;
 		}
 
-		bool	are_signatures_not_equal (signature_t const& _a, signature_t const& _b)
+		bool	are_nequal (hash_t const& _a, hash_t const& _b)
 		{
 			ASSERT(_a.length_ == _b.length_);
 			ASSERT(_a.digest_ != NULL);
@@ -63,7 +63,7 @@ namespace xcore
 			return equal;
 		}
 
-		s32		compare_signatures (const signature_t& _a, const signature_t& _b)
+		s32		compare(const hash_t& _a, const hash_t& _b)
 		{
 			ASSERT(_a.length_ == _b.length_);
 			ASSERT(_a.digest_ != NULL);
@@ -85,7 +85,7 @@ namespace xcore
 			return 0;
 		}
 
-		s32 branch::push(signature_t const& _sig)
+		s32 branch_t::push(hash_t const& _sig)
 		{
 			if (size_ < length_)
 			{
@@ -99,7 +99,7 @@ namespace xcore
 			}
 		}
 
-		signature_t const* branch::operator[](s32 _index) const
+		hash_t const* branch_t::operator[](s32 _index) const
 		{
 			if (_index < (s32)size_)
 			{
@@ -111,34 +111,34 @@ namespace xcore
 			}
 		}
 
-		u32	data::size_for(bin_t _root, u32 _siglen)
+		u32	data_t::size_for(bin_t _root, u32 _siglen)
 		{
 			u32 const data_size = (u32)((_root.base_length() * 2 * _siglen) + sizeof(bin_t));
 			return data_size;
 		}
 
-		cmap::cmap()
+		ctree::ctree()
 			: root_bin_(0)
 			, data_(0)
 		{
 		}
 
-		cmap::cmap(data& _data)
+		ctree::ctree(data_t& _data)
 			: root_bin_(0)
 			, data_(0)
 		{
 			root_bin_ = (bin_t*)_data.get_data();
 			*root_bin_ = _data.get_root();
 
-			work_sig_ = signature_t(NULL, _data.get_siglen());
+			work_sig_ = hash_t(NULL, _data.get_siglen());
 			work_sig_.digest_ = _data.get_data() + sizeof(bin_t);
 
 			data_ = _data.get_data() + sizeof(bin_t) + _data.get_siglen();
-			root_sig_ = signature_t(NULL, _data.get_siglen());
-			get_sig_at(*root_bin_, root_sig_);
+			root_sig_ = hash_t(NULL, _data.get_siglen());
+			read(*root_bin_, root_sig_);
 		}
 
-		s32 cmap::read_branch(bin_t _bin, branch& _branch) const
+		s32 ctree::read(bin_t _bin, branch_t& _branch) const
 		{
 			// do we contain this bin ?
 			if (!root_bin_->contains(_bin))
@@ -148,8 +148,8 @@ namespace xcore
 			if ((_branch.length() - _branch.size()) <= (u32)root_bin_->layer())
 				return -2;
 
-			signature_t sig;
-			get_sig_at(_bin, sig);
+			hash_t sig;
+			read(_bin, sig);
 			if (is_zero(sig))
 				return -3;
 
@@ -159,11 +159,11 @@ namespace xcore
 				if (iter.is_right())
 					iter.to_sibling();
 
-				get_sig_at(iter.sibling(), sig);
+				read(iter.sibling(), sig);
 				_branch.push(sig);
 				do
 				{
-					get_sig_at(iter.sibling(), sig);
+					read(iter.sibling(), sig);
 					_branch.push(sig);
 					iter.to_parent();
 				} while (iter != *root_bin_);
@@ -174,13 +174,13 @@ namespace xcore
 			return _branch.size();
 		}
 
-		map::map()
-			: cmap()
+		tree::tree()
+			: ctree()
 		{
 		}
 
-		map::map(data& _data, signature_t const& _rootsig, combine_f _sigcombiner)
-			: cmap(_data)
+		tree::tree(data_t& _data, hash_t const& _rootsig, combine_f _sigcombiner)
+			: ctree(_data)
 			, combine_f_(_sigcombiner)
 		{
 			copy(root_sig_, _rootsig);
@@ -194,7 +194,7 @@ namespace xcore
 		// of the node together with the signature of its sibling.
 		// Then when navigating up save the parent and its sibling etc..
 		//
-		s32 map::submit_branch(bin_t _bin, branch const& _branch)
+		s32 tree::write(bin_t _bin, branch_t const& _branch)
 		{
 			// do we contain this bin ?
 			if (!root_bin_->contains(_bin))
@@ -202,8 +202,8 @@ namespace xcore
 
 			// First step: Determine if this branch resolves to the root signature
 			s32 i = 0;
-			signature_t const* lhs = _branch[i++];
-			signature_t const* rhs = _branch[i++];
+			hash_t const* lhs = _branch[i++];
+			hash_t const* rhs = _branch[i++];
 
 			bin_t iter = _bin;
 			while (true)
@@ -226,7 +226,7 @@ namespace xcore
 				}
 			}
 
-			if (are_signatures_not_equal(root_sig_, work_sig_))
+			if (are_nequal(root_sig_, work_sig_))
 				return -3;
 
 			// The branch is valid, proceed
@@ -235,10 +235,10 @@ namespace xcore
 			
 			i = 0;
 
-			signature_t base_sig;
-			get_sig_at(iter, base_sig);
-			signature_t base_sibling_sig;
-			get_sig_at(iter.sibling(), base_sibling_sig);
+			hash_t base_sig;
+			read(iter, base_sig);
+			hash_t base_sibling_sig;
+			read(iter.sibling(), base_sibling_sig);
 
 			// Increase the signature submit count whenever we are adding a signature in layer 0
 			if (is_zero(base_sig))
@@ -249,13 +249,13 @@ namespace xcore
 
 			if (iter.is_left())
 			{
-				set_sig_at(iter, *_branch[i++]);
-				set_sig_at(iter.sibling(), *_branch[i++]);
+				write(iter, *_branch[i++]);
+				write(iter.sibling(), *_branch[i++]);
 			}
 			else
 			{
-				set_sig_at(iter.sibling(), *_branch[i++]);
-				set_sig_at(iter, *_branch[i++]);
+				write(iter.sibling(), *_branch[i++]);
+				write(iter, *_branch[i++]);
 			}
 
 			while (true)
@@ -263,14 +263,14 @@ namespace xcore
 				iter.to_parent();
 				if (iter == *root_bin_)
 					break;
-				set_sig_at(iter.sibling(), *_branch[i++]);
+				write(iter.sibling(), *_branch[i++]);
 			}
 
 			return -1;
 		}
 
 
-		map::builder::builder(data& _data, signature_t const& _rootsig, combine_f _sigcombiner)
+		tree::builder::builder(data_t& _data, hash_t const& _rootsig, combine_f _sigcombiner)
 			: combine_f_(_sigcombiner)
 			, root_bin_(0)
 			, data_(0)		
@@ -278,25 +278,25 @@ namespace xcore
 			root_bin_ = (bin_t*)_data.get_data();
 			*root_bin_ = _data.get_root();
 
-			work_sig_ = signature_t(NULL, _data.get_siglen());
+			work_sig_ = hash_t(NULL, _data.get_siglen());
 			work_sig_.digest_ = _data.get_data() + sizeof(bin_t);
 
 			data_ = _data.get_data() + sizeof(bin_t) + _data.get_siglen();
-			root_sig_ = signature_t(NULL, _data.get_siglen());
-			get_sig_at(*root_bin_, root_sig_);
+			root_sig_ = hash_t(NULL, _data.get_siglen());
+			read(*root_bin_, root_sig_);
 
-			u32 const data_size = data::size_for(*root_bin_, _data.get_siglen()) - sizeof(bin_t);
+			u32 const data_size = data_t::size_for(*root_bin_, _data.get_siglen()) - sizeof(bin_t);
 			x_memzero(_data.get_data() + sizeof(bin_t), data_size);
 		}
 
-		s32				map::builder::submit(bin_t _bin, signature_t const& _sig)
+		s32				tree::builder::write(bin_t _bin, hash_t const& _sig)
 		{
 			// do we contain this bin ?
 			if (!root_bin_->contains(_bin))
 				return -2;	// out of range
 
-			signature_t s;
-			get_sig_at(_bin, s);
+			hash_t s;
+			read(_bin, s);
 			copy(s, _sig);
 
 			return 1;
@@ -305,14 +305,14 @@ namespace xcore
 		/*
 		 Build the signature tree from the base level up until the root
 		*/
-		bool			map::builder::build()
+		bool			tree::builder::build()
 		{
 			bool is_complete = true;
 			u32 w = (u32)root_bin_->base_length();
 			for (u32 o=0; is_complete && o<w; ++o)
 			{
-				signature_t sig;
-				get_sig_at(bin_t(0, o), sig);
+				hash_t sig;
+				read(bin_t(0, o), sig);
 				is_complete = is_complete || !is_zero(sig);
 			}
 
@@ -329,11 +329,11 @@ namespace xcore
 				w = (u32)ib.layer_offset() + 1;
 				for (u32 o=0; o<w; ++o)
 				{
-					signature_t psig;
-					get_sig_at(bin_t(layer, o), psig);
-					signature_t lsig, rsig;
-					get_sig_at(bin_t(layer-1, (2*o)+0), lsig);
-					get_sig_at(bin_t(layer-1, (2*o)+1), rsig);
+					hash_t psig;
+					read(bin_t(layer, o), psig);
+					hash_t lsig, rsig;
+					read(bin_t(layer-1, (2*o)+0), lsig);
+					read(bin_t(layer-1, (2*o)+1), rsig);
 					combine_f_(lsig, rsig, psig);
 				}
 			}
@@ -345,12 +345,12 @@ namespace xcore
 		 Build the signature tree from the base level up until the root and then
 		 validate the root against the given root signature
 		*/
-		bool			map::builder::build_and_verify(signature_t const& _root_signature)
+		bool			tree::builder::build_and_verify(hash_t const& _root_signature)
 		{
 			if (!build())
 				return false;
 
-			return are_signatures_equal(_root_signature, root_sig_);
+			return are_equal(_root_signature, root_sig_);
 		}
 	}
 }
