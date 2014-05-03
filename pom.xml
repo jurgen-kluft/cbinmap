@@ -257,96 +257,6 @@
 						<AdditionalDependencies>#${Name}_$(PackageSignature).lib</AdditionalDependencies>
 					</Link>
 				</ItemDefinitionGroup>
-				<ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DevDebug|WII'">
-					<ClCompile>
-						<AdditionalIncludeDirectories>$(${Name}_IncludeDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-					</ClCompile>
-					<Link>
-						<AdditionalLibraryDirectories>$(${Name}_LibraryDir);</AdditionalLibraryDirectories>
-						<AdditionalDependencies>#${Name}_$(PackageSignature).lib</AdditionalDependencies>
-					</Link>
-				</ItemDefinitionGroup>
-				<ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DevRelease|WII'">
-					<ClCompile>
-						<AdditionalIncludeDirectories>$(${Name}_IncludeDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-					</ClCompile>
-					<Link>
-						<AdditionalLibraryDirectories>$(${Name}_LibraryDir);</AdditionalLibraryDirectories>
-						<AdditionalDependencies>#${Name}_$(PackageSignature).lib</AdditionalDependencies>
-					</Link>
-				</ItemDefinitionGroup>
-				<ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DevFinal|WII'">
-					<ClCompile>
-						<AdditionalIncludeDirectories>$(${Name}_IncludeDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-					</ClCompile>
-					<Link>
-						<AdditionalLibraryDirectories>$(${Name}_LibraryDir);</AdditionalLibraryDirectories>
-						<AdditionalDependencies>#${Name}_$(PackageSignature).lib</AdditionalDependencies>
-					</Link>
-				</ItemDefinitionGroup>
-				<ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='TestDebug|WII'">
-					<ClCompile>
-						<AdditionalIncludeDirectories>$(${Name}_IncludeDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-					</ClCompile>
-					<Link>
-						<AdditionalLibraryDirectories>$(${Name}_LibraryDir);</AdditionalLibraryDirectories>
-						<AdditionalDependencies>#${Name}_$(PackageSignature).lib</AdditionalDependencies>
-					</Link>
-				</ItemDefinitionGroup>
-				<ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='TestRelease|WII'">
-					<ClCompile>
-						<AdditionalIncludeDirectories>$(${Name}_IncludeDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-					</ClCompile>
-					<Link>
-						<AdditionalLibraryDirectories>$(${Name}_LibraryDir);</AdditionalLibraryDirectories>
-						<AdditionalDependencies>#${Name}_$(PackageSignature).lib</AdditionalDependencies>
-					</Link>
-				</ItemDefinitionGroup>
-				<ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DevDebug|N3DS'">
-					<ClCompile>
-						<AdditionalIncludeDirectories>$(${Name}_IncludeDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-					</ClCompile>
-					<Link>
-						<AdditionalLibraryDirectories>$(${Name}_LibraryDir);</AdditionalLibraryDirectories>
-						<AdditionalDependencies>#${Name}_$(PackageSignature).lib</AdditionalDependencies>
-					</Link>
-				</ItemDefinitionGroup>
-				<ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DevRelease|N3DS'">
-					<ClCompile>
-						<AdditionalIncludeDirectories>$(${Name}_IncludeDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-					</ClCompile>
-					<Link>
-						<AdditionalLibraryDirectories>$(${Name}_LibraryDir);</AdditionalLibraryDirectories>
-						<AdditionalDependencies>#${Name}_$(PackageSignature).lib</AdditionalDependencies>
-					</Link>
-				</ItemDefinitionGroup>
-				<ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DevFinal|N3DS'">
-					<ClCompile>
-						<AdditionalIncludeDirectories>$(${Name}_IncludeDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-					</ClCompile>
-					<Link>
-						<AdditionalLibraryDirectories>$(${Name}_LibraryDir);</AdditionalLibraryDirectories>
-						<AdditionalDependencies>#${Name}_$(PackageSignature).lib</AdditionalDependencies>
-					</Link>
-				</ItemDefinitionGroup>
-				<ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='TestDebug|N3DS'">
-					<ClCompile>
-						<AdditionalIncludeDirectories>$(${Name}_IncludeDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-					</ClCompile>
-					<Link>
-						<AdditionalLibraryDirectories>$(${Name}_LibraryDir);</AdditionalLibraryDirectories>
-						<AdditionalDependencies>#${Name}_$(PackageSignature).lib</AdditionalDependencies>
-					</Link>
-				</ItemDefinitionGroup>
-				<ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='TestRelease|N3DS'">
-					<ClCompile>
-						<AdditionalIncludeDirectories>$(${Name}_IncludeDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-					</ClCompile>
-					<Link>
-						<AdditionalLibraryDirectories>$(${Name}_LibraryDir);</AdditionalLibraryDirectories>
-						<AdditionalDependencies>#${Name}_$(PackageSignature).lib</AdditionalDependencies>
-					</Link>
-				</ItemDefinitionGroup>
 				<ItemGroup>
 					<ClCompile Include="source\main\cpp\**\*.cpp" />
 				</ItemGroup>
@@ -384,18 +294,6 @@
 					<ConfigurationType>Application</ConfigurationType>
 				</PropertyGroup>
 				<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='TestRelease|Xbox 360'" Label="Configuration">
-					<ConfigurationType>Application</ConfigurationType>
-				</PropertyGroup>
-				<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='TestDebug|WII'" Label="Configuration">
-					<ConfigurationType>Application</ConfigurationType>
-				</PropertyGroup>
-				<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='TestRelease|WII'" Label="Configuration">
-					<ConfigurationType>Application</ConfigurationType>
-				</PropertyGroup>
-				<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='TestDebug|N3DS'" Label="Configuration">
-					<ConfigurationType>Application</ConfigurationType>
-				</PropertyGroup>
-				<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='TestRelease|N3DS'" Label="Configuration">
 					<ConfigurationType>Application</ConfigurationType>
 				</PropertyGroup>
 				<ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='TestDebug|Win32'">
@@ -462,42 +360,6 @@
 					</Link>
 				</ItemDefinitionGroup>
 				<ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='TestRelease|Xbox 360'">
-					<ClCompile>
-						<AdditionalIncludeDirectories>$(${Name}_RootDir)source\test\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-					</ClCompile>
-					<Link>
-						<AdditionalDependencies>${Name}_$(PackageSignature).lib</AdditionalDependencies>
-						<AdditionalLibraryDirectories>$(${Name}_LibraryDir)</AdditionalLibraryDirectories>
-					</Link>
-				</ItemDefinitionGroup>
-				<ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='TestDebug|WII'">
-					<ClCompile>
-						<AdditionalIncludeDirectories>$(${Name}_RootDir)source\test\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-					</ClCompile>
-					<Link>
-						<AdditionalDependencies>${Name}_$(PackageSignature).lib</AdditionalDependencies>
-						<AdditionalLibraryDirectories>$(${Name}_LibraryDir)</AdditionalLibraryDirectories>
-					</Link>
-				</ItemDefinitionGroup>
-				<ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='TestRelease|WII'">
-					<ClCompile>
-						<AdditionalIncludeDirectories>$(${Name}_RootDir)source\test\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-					</ClCompile>
-					<Link>
-						<AdditionalDependencies>${Name}_$(PackageSignature).lib</AdditionalDependencies>
-						<AdditionalLibraryDirectories>$(${Name}_LibraryDir)</AdditionalLibraryDirectories>
-					</Link>
-				</ItemDefinitionGroup>
-				<ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='TestDebug|N3DS'">
-					<ClCompile>
-						<AdditionalIncludeDirectories>$(${Name}_RootDir)source\test\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-					</ClCompile>
-					<Link>
-						<AdditionalDependencies>${Name}_$(PackageSignature).lib</AdditionalDependencies>
-						<AdditionalLibraryDirectories>$(${Name}_LibraryDir)</AdditionalLibraryDirectories>
-					</Link>
-				</ItemDefinitionGroup>
-				<ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='TestRelease|N3DS'">
 					<ClCompile>
 						<AdditionalIncludeDirectories>$(${Name}_RootDir)source\test\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
 					</ClCompile>
