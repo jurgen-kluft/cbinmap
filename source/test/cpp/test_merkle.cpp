@@ -1,10 +1,10 @@
-#include "xbase\x_allocator.h"
-#include "xbase\x_debug.h"
-#include "xbase\x_memory_std.h"
-#include "xbase\x_integer.h"
-#include "xbinmaps\merkle.h"
-#include "xbinmaps\blake_256.h"
-#include "xunittest\xunittest.h"
+#include "xbase/x_allocator.h"
+#include "xbase/x_debug.h"
+#include "xbase/x_memory_std.h"
+#include "xbase/x_integer.h"
+#include "xbinmaps/merkle.h"
+#include "xbinmaps/blake_256.h"
+#include "xunittest/xunittest.h"
 
 using namespace xcore;
 

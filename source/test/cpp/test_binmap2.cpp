@@ -1,9 +1,9 @@
-#include "xbase\x_debug.h"
-#include "xbase\x_memory_std.h"
-#include "xbinmaps\binmap.h"
-#include "xbinmaps\bin.h"
-#include "xbinmaps\utils.h"
-#include "xunittest\xunittest.h"
+#include "xbase/x_debug.h"
+#include "xbase/x_memory_std.h"
+#include "xbinmaps/binmap.h"
+#include "xbinmaps/bin.h"
+#include "xbinmaps/utils.h"
+#include "xunittest/xunittest.h"
 
 #include <random>
 

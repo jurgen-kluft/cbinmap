@@ -1,6 +1,6 @@
-#include "xbinmaps\bin.h"
-#include "xbinmaps\utils.h"
-#include "xunittest\xunittest.h"
+#include "xbinmaps/bin.h"
+#include "xbinmaps/utils.h"
+#include "xunittest/xunittest.h"
 
 using namespace xcore;
 
