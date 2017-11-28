@@ -1,6 +1,6 @@
 #include "xbase/x_debug.h"
 #include "xbase/x_memory_std.h"
-#include "xbase/x_string_std.h"
+#include "xbase/x_string_ascii.h"
 
 #include "xbinmaps/binmap.h"
 
