@@ -31,8 +31,8 @@ namespace xcore
 		typedef void (*combine_f)(hash_t const& _left, hash_t const& _right, hash_t& _out);
 
 		/**
-		 * @group		xcore::sigmap
-		 * @brief		Signature Map implementation used for content validation
+		 * @group		xcore::merkle
+		 * @brief		Merkle-Tree implementation used for content validation
 		 * @URL         Reference -> http://www.merkle.com/‎
 		 * 
 		 * @required    @_rootsig is the root signature
@@ -40,7 +40,7 @@ namespace xcore
 		 *				@_sigcombiner can combine 2 signatures into 1
 		 *				@_allocator allocator for allocating nodes and signatures
 		 *
-		 * @behavior	The signature map will allocate once for the full tree 
+		 * @behavior	The merkle tree will allocate once for the full tree 
 		 * 
 		 * @example		You want to set a signature on it's bin :
 		 *              
@@ -68,6 +68,8 @@ namespace xcore
 		struct data_t
 		{
 		public:
+			inline					data_t(bin_t _root, u32 _siglen, xbyte* _data) : root_(_root), siglen_(_siglen), data_(_data) {}
+
 			bin_t					get_root() const				{ return root_; }
 			u32						get_siglen() const				{ return siglen_; }
 			byte*					get_data() const				{ return data_; }
@@ -76,21 +78,11 @@ namespace xcore
 
 		protected:
 			inline					data_t() : root_(bin_t::NONE), siglen_(0), data_(0) {}
-			inline					data_t(bin_t _root, u32 _siglen, xbyte* _data) : root_(_root), siglen_(_siglen), data_(_data) {}
 
 			bin_t					root_;
 			u32						siglen_;
 			byte*					data_;
 		};
-
-		class user_data_t : public data_t
-		{
-		public:
-			inline					user_data_t(bin_t _root, u32 _signature_length, xbyte* _data) 
-									: data_t(_root, _signature_length, _data) {}
-		};
-
-
 
 		class ctree
 		{
@@ -99,7 +91,7 @@ namespace xcore
 									ctree(data_t& _data);
 
 			s32						read(bin_t _bin, branch_t& _out_branch) const;
-			s32						read(bin_t, hash_t& _out_signature) const;
+			s32						read(bin_t _bin, hash_t& _out_signature) const;
 
 		protected:
 			bin_t*					root_bin_;
@@ -120,7 +112,7 @@ namespace xcore
 			s32						write(bin_t _bin, branch_t const& _branch);
 
 		protected:
-			s32						write(bin_t, hash_t const& _in_signature);
+			s32						write(bin_t _bin, hash_t const& _in_signature);
 
 			combine_f				combine_f_;
 
@@ -156,7 +148,6 @@ namespace xcore
 				xbyte*					data_;
 			};
 		};
-
 
 		inline s32 ctree::read(bin_t _bin, hash_t& _out_signature) const
 		{
