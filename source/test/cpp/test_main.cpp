@@ -23,7 +23,7 @@ namespace xcore
 			NumberOfAsserts = 0;
 		}
 
-		virtual xcore::xbool	HandleAssert(u32& flags, const char* fileName, s32 lineNumber, const char* exprString, const char* messageString)
+		virtual xcore::bool	HandleAssert(u32& flags, const char* fileName, s32 lineNumber, const char* exprString, const char* messageString)
 		{
 			UnitTest::reportAssert(exprString, fileName, lineNumber);
 			NumberOfAsserts++;
@@ -92,7 +92,7 @@ bool gRunUnitTest(UnitTest::TestReporter& reporter)
 	xcore::UnitTestAllocator unittestAllocator( systemAllocator );
 	UnitTest::SetAllocator(&unittestAllocator);
 	
-	xcore::xconsole::add_default_console();
+	xcore::console_t::add_default_console();
 
 	xcore::TestAllocator testAllocator(systemAllocator);
 	gTestAllocator = &testAllocator;
