@@ -23,7 +23,7 @@ namespace xcore
 			NumberOfAsserts = 0;
 		}
 
-		virtual xcore::bool	HandleAssert(u32& flags, const char* fileName, s32 lineNumber, const char* exprString, const char* messageString)
+		virtual bool	HandleAssert(u32& flags, const char* fileName, s32 lineNumber, const char* exprString, const char* messageString)
 		{
 			UnitTest::reportAssert(exprString, fileName, lineNumber);
 			NumberOfAsserts++;
