@@ -1,5 +1,7 @@
+#include "xbase/x_target.h"
+#include "xbase/x_allocator.h"
 #include "xbase/x_debug.h"
-#include "xbase/x_memory_std.h"
+#include "xbase/x_memory.h"
 #include "xbinmaps/binmap.h"
 #include "xbinmaps/bin.h"
 #include "xbinmaps/utils.h"
@@ -7,7 +9,7 @@
 
 using namespace xcore;
 
-extern xcore::x_iallocator* gTestAllocator;
+extern xcore::alloc_t* gTestAllocator;
 
 
 UNITTEST_SUITE_BEGIN(binmap)

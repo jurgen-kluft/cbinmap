@@ -1,6 +1,6 @@
 #include "xbase/x_debug.h"
-#include "xbase/x_memory_std.h"
-#include "xbase/x_string_ascii.h"
+#include "xbase/x_memory.h"
+#include "xbase/x_runes.h"
 
 #include "xbinmaps/binmap.h"
 
@@ -24,6 +24,20 @@ namespace xcore
 		{
 
 		}
+
+		cbinmap::cbinmap(user_data _data)
+			: binroot_(0)
+			, binmap1_(0)
+			, binmap0_(0)
+		{
+			binroot_ = (bin_t*)_data.get_data();
+			*binroot_ = _data.get_root();
+
+			u32 const binmap_size = (data::size_for(_data.get_root()) - sizeof(bin_t)) / 2;
+			binmap1_ = _data.get_data() + sizeof(bin_t);
+			binmap0_ = binmap1_ + binmap_size;
+		}
+
 		cbinmap::cbinmap(data& _data)
 			: binroot_(0)
 			, binmap1_(0)
@@ -43,6 +57,12 @@ namespace xcore
 		binmap::binmap()
 			: cbinmap()
 		{
+		}
+
+		binmap::binmap(user_data _data)
+			: cbinmap(_data)
+		{
+
 		}
 
 		binmap::binmap(data& _data)
@@ -587,7 +607,7 @@ namespace xcore
 		/**
 		* Get total size of the binmap
 		*/
-		size_t cbinmap::total_size() const
+		xsize_t cbinmap::total_size() const
 		{
 			u32 const binmap_size = (u32)(((binroot_->base_length() * 2) + 7) / 8);
 			return sizeof(binmap) + binmap_size + binmap_size;

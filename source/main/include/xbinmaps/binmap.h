@@ -2,7 +2,7 @@
 #define __XBINMAP_BINMAP_H__
 #include "xbase/x_target.h"
 
-#include "xbase/x_idx_allocator.h"
+#include "xbase/x_debug.h"
 #include "xbinmaps/bin.h"
 
 namespace xcore 
@@ -41,6 +41,7 @@ namespace xcore
 		{
 		public:
 							cbinmap();
+							cbinmap(user_data);
 							cbinmap(data&);
 							cbinmap(const cbinmap&);
 
@@ -59,7 +60,7 @@ namespace xcore
 			bin_t			find_filled() const;
 			bin_t			find_empty(bin_t start) const;
 
-			size_t			total_size() const;
+			xsize_t			total_size() const;
 
 			bool			read_am_at(bin_t) const;
 			bool			read_om_at(bin_t) const;
@@ -79,6 +80,7 @@ namespace xcore
 		{
 		public:
 							binmap();
+							binmap(user_data);
 							binmap(data&);
 							binmap(const binmap&);
 

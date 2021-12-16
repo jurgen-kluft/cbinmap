@@ -1,8 +1,11 @@
+#include "xbase/x_target.h"
+#include "xbase/x_allocator.h"
 #include "xbase/x_debug.h"
-#include "xbase/x_memory_std.h"
+#include "xbase/x_memory.h"
 #include "xbinmaps/binmap.h"
 #include "xbinmaps/bin.h"
 #include "xbinmaps/utils.h"
+
 #include "xunittest/xunittest.h"
 
 #include <random>
@@ -12,7 +15,7 @@ typedef	binmaps::binmap	binmap_t;
 
 #define CHECK_EQUAL_BIN_T(a, b) CHECK_EQUAL(a.value(), b.value());
 
-extern xcore::x_iallocator* gTestAllocator;
+extern xcore::alloc_t* gTestAllocator;
 
 UNITTEST_SUITE_BEGIN(binmap2)
 {

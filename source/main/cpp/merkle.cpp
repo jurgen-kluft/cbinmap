@@ -1,6 +1,6 @@
 #include "xbase/x_target.h"
 #include "xbase/x_integer.h"
-#include "xbase/x_memory_std.h"
+#include "xbase/x_memory.h"
 #include "xbinmaps/merkle.h"
 
 namespace xcore
