@@ -1,7 +1,7 @@
 #ifndef __XBINMAPS_BIN_H__
 #define __XBINMAPS_BIN_H__
-#include "xbase/x_target.h"
-#include "xbase/x_debug.h"
+#include "cbase/c_target.h"
+#include "cbase/c_debug.h"
 
 namespace ncore
 {

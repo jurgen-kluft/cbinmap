@@ -1,9 +1,9 @@
 #ifndef __XBINMAP_BINMAP_H__
 #define __XBINMAP_BINMAP_H__
-#include "xbase/x_target.h"
+#include "cbase/c_target.h"
 
-#include "xbase/x_debug.h"
-#include "xbinmaps/bin.h"
+#include "cbase/c_debug.h"
+#include "cbinmaps/bin.h"
 
 namespace ncore 
 {

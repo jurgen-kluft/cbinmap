@@ -1,6 +1,6 @@
 #ifndef __BLAKE_256_H__ 
 #define __BLAKE_256_H__
-#include "xbase/x_target.h"
+#include "cbase/c_target.h"
 
 namespace ncore
 {

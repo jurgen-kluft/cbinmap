@@ -1,10 +1,10 @@
-#include "xbase/x_target.h"
-#include "xbase/x_allocator.h"
-#include "xbase/x_debug.h"
-#include "xbase/x_memory.h"
-#include "xbase/x_integer.h"
-#include "xbinmaps/merkle.h"
-#include "xunittest/xunittest.h"
+#include "cbase/c_target.h"
+#include "cbase/c_allocator.h"
+#include "cbase/c_debug.h"
+#include "cbase/c_memory.h"
+#include "cbase/c_integer.h"
+#include "cbinmaps/merkle.h"
+#include "cunittest/xunittest.h"
 
 using namespace ncore;
 

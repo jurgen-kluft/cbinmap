@@ -1,8 +1,8 @@
-#include "xbase/x_debug.h"
-#include "xbase/x_memory.h"
-#include "xbase/x_runes.h"
+#include "cbase/c_debug.h"
+#include "cbase/c_memory.h"
+#include "cbase/c_runes.h"
 
-#include "xbinmaps/binmap.h"
+#include "cbinmaps/binmap.h"
 
 namespace ncore
 {

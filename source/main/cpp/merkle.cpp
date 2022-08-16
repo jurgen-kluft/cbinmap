@@ -1,7 +1,7 @@
-#include "xbase/x_target.h"
-#include "xbase/x_integer.h"
-#include "xbase/x_memory.h"
-#include "xbinmaps/merkle.h"
+#include "cbase/c_target.h"
+#include "cbase/c_integer.h"
+#include "cbase/c_memory.h"
+#include "cbinmaps/merkle.h"
 
 namespace ncore
 {

@@ -1,5 +1,5 @@
-#include "xbase/x_integer.h" 
-#include "xbinmaps/bin.h"
+#include "cbase/c_integer.h" 
+#include "cbinmaps/bin.h"
 
 namespace ncore
 {
