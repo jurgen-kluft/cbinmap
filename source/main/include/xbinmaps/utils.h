@@ -3,7 +3,7 @@
 #include "xbase/x_target.h"
 #include "xbinmaps/bin.h"
 
-namespace xcore
+namespace ncore
 {
 	/**
 	 * Generating a list of peak bins for corresponding length

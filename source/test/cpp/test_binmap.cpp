@@ -7,24 +7,24 @@
 #include "xbinmaps/utils.h"
 #include "xunittest/xunittest.h"
 
-using namespace xcore;
+using namespace ncore;
 
-extern xcore::alloc_t* gTestAllocator;
+extern ncore::alloc_t* gTestAllocator;
 
 
 UNITTEST_SUITE_BEGIN(binmap)
 {
 	UNITTEST_FIXTURE(main)
 	{
-		xbyte* data1 = NULL;
-		xbyte* data2 = NULL;
+		u8* data1 = nullptr;
+		u8* data2 = nullptr;
 		u32 data_size = 0;
 
 		UNITTEST_FIXTURE_SETUP() 
 		{
 			data_size = binmaps::data::size_for(bin_t::to_root(1<<24));
-			data1 = (xbyte*)gTestAllocator->allocate(data_size, sizeof(void*));
-			data2 = (xbyte*)gTestAllocator->allocate(data_size, sizeof(void*));
+			data1 = (u8*)gTestAllocator->allocate(data_size, sizeof(void*));
+			data2 = (u8*)gTestAllocator->allocate(data_size, sizeof(void*));
 		}
 		UNITTEST_FIXTURE_TEARDOWN() 
 		{

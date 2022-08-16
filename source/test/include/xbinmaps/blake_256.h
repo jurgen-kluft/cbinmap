@@ -2,7 +2,7 @@
 #define __BLAKE_256_H__
 #include "xbase/x_target.h"
 
-namespace xcore
+namespace ncore
 {
 	struct hash256
 	{

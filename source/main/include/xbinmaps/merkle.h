@@ -8,17 +8,17 @@
 
 #include "xbinmaps/bin.h"
 
-namespace xcore
+namespace ncore
 {
 	namespace merkle
 	{	
-		typedef		xbyte		byte;
+		typedef		u8		byte;
 
 		struct hash_t
 		{
 			inline			hash_t() : digest_(0), length_(0) {}
-			inline			hash_t(xbyte* d, u32 l) : digest_(d), length_(l) {}
-			xbyte*			digest_;
+			inline			hash_t(u8* d, u32 l) : digest_(d), length_(l) {}
+			u8*			digest_;
 			u32				length_;
 		};
 
@@ -31,7 +31,7 @@ namespace xcore
 		typedef void (*combine_f)(hash_t const& _left, hash_t const& _right, hash_t& _out);
 
 		/**
-		 * @group		xcore::merkle
+		 * @group		ncore::merkle
 		 * @brief		Merkle-Tree implementation used for content validation
 		 * @URL         Reference -> http://www.merkle.com/‎
 		 * 
@@ -68,7 +68,7 @@ namespace xcore
 		struct data_t
 		{
 		public:
-			inline					data_t(bin_t _root, u32 _siglen, xbyte* _data) : root_(_root), siglen_(_siglen), data_(_data) {}
+			inline					data_t(bin_t _root, u32 _siglen, u8* _data) : root_(_root), siglen_(_siglen), data_(_data) {}
 
 			bin_t					get_root() const				{ return root_; }
 			u32						get_siglen() const				{ return siglen_; }
@@ -98,7 +98,7 @@ namespace xcore
 			hash_t					root_sig_;
 			hash_t					work_sig_;
 
-			xbyte*					data_;
+			u8*					data_;
 		};
 
 
@@ -145,7 +145,7 @@ namespace xcore
 				hash_t					root_sig_;
 				hash_t					work_sig_;
 
-				xbyte*					data_;
+				u8*					data_;
 			};
 		};
 

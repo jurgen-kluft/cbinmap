@@ -10,21 +10,21 @@
 
 #include <random>
 
-using namespace xcore;
+using namespace ncore;
 typedef	binmaps::binmap	binmap_t;
 
 #define CHECK_EQUAL_BIN_T(a, b) CHECK_EQUAL(a.value(), b.value());
 
-extern xcore::alloc_t* gTestAllocator;
+extern ncore::alloc_t* gTestAllocator;
 
 UNITTEST_SUITE_BEGIN(binmap2)
 {
 	UNITTEST_FIXTURE(main)
 	{
 		u32 data_size = 0;
-		xbyte* data1 = NULL;
-		xbyte* data2 = NULL;
-		xbyte* data3 = NULL;
+		u8* data1 = nullptr;
+		u8* data2 = nullptr;
+		u8* data3 = nullptr;
 
 		void clear_data()
 		{
@@ -36,9 +36,9 @@ UNITTEST_SUITE_BEGIN(binmap2)
 		UNITTEST_FIXTURE_SETUP() 
 		{
 			data_size = binmaps::data::size_for(bin_t::to_root(1<<24));
-			data1 = (xbyte*)gTestAllocator->allocate(data_size, sizeof(void*));
-			data2 = (xbyte*)gTestAllocator->allocate(data_size, sizeof(void*));
-			data3 = (xbyte*)gTestAllocator->allocate(data_size, sizeof(void*));
+			data1 = (u8*)gTestAllocator->allocate(data_size, sizeof(void*));
+			data2 = (u8*)gTestAllocator->allocate(data_size, sizeof(void*));
+			data3 = (u8*)gTestAllocator->allocate(data_size, sizeof(void*));
 		}
 		UNITTEST_FIXTURE_TEARDOWN() 
 		{

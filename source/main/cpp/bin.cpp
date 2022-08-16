@@ -1,7 +1,7 @@
 #include "xbase/x_integer.h" 
 #include "xbinmaps/bin.h"
 
-namespace xcore
+namespace ncore
 {
 
 	const bin_t bin_t::NONE(8 * sizeof(u64), 0);

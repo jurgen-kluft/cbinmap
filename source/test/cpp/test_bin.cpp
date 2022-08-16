@@ -2,7 +2,7 @@
 #include "xbinmaps/utils.h"
 #include "xunittest/xunittest.h"
 
-using namespace xcore;
+using namespace ncore;
 
 #define CHECK_EQUAL_BIN_T(a, b) CHECK_EQUAL(a.value(), b.value());
 

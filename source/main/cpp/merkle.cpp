@@ -3,7 +3,7 @@
 #include "xbase/x_memory.h"
 #include "xbinmaps/merkle.h"
 
-namespace xcore
+namespace ncore
 {
 	namespace merkle
 	{
@@ -22,16 +22,16 @@ namespace xcore
 		static inline void copy(hash_t& _dst, hash_t const& _src)
 		{
 			ASSERT(_src.length_ == _dst.length_);
-			ASSERT(_src.digest_ != NULL);
-			ASSERT(_dst.digest_ != NULL);
+			ASSERT(_src.digest_ != nullptr);
+			ASSERT(_dst.digest_ != nullptr);
 			x_memcopy4((u32*)_dst.digest_, (u32 const*)_src.digest_, _src.length_ / 4);
 		}
 
 		bool	are_equal (hash_t const& _a, hash_t const& _b)
 		{
 			ASSERT(_a.length_ == _b.length_);
-			ASSERT(_a.digest_ != NULL);
-			ASSERT(_b.digest_ != NULL);
+			ASSERT(_a.digest_ != nullptr);
+			ASSERT(_b.digest_ != nullptr);
 
 			// This is a special case where we assume the signature is aligned on 4 bytes
 			u32 const* lhs = (u32 const*)_a.digest_;
@@ -48,8 +48,8 @@ namespace xcore
 		bool	are_nequal (hash_t const& _a, hash_t const& _b)
 		{
 			ASSERT(_a.length_ == _b.length_);
-			ASSERT(_a.digest_ != NULL);
-			ASSERT(_b.digest_ != NULL);
+			ASSERT(_a.digest_ != nullptr);
+			ASSERT(_b.digest_ != nullptr);
 
 			// This is a special case where we assume the signature is aligned on 4 bytes
 			u32 const* lhs = (u32 const*)_a.digest_;
@@ -66,8 +66,8 @@ namespace xcore
 		s32		compare(const hash_t& _a, const hash_t& _b)
 		{
 			ASSERT(_a.length_ == _b.length_);
-			ASSERT(_a.digest_ != NULL);
-			ASSERT(_b.digest_ != NULL);
+			ASSERT(_a.digest_ != nullptr);
+			ASSERT(_b.digest_ != nullptr);
 
 			// This is a special case where we assume the signature is aligned on 4 bytes
 			u8 const* lhs = (u8 const*)(_a.digest_);
@@ -107,7 +107,7 @@ namespace xcore
 			}
 			else
 			{
-				return NULL;
+				return nullptr;
 			}
 		}
 
@@ -130,11 +130,11 @@ namespace xcore
 			root_bin_ = (bin_t*)_data.get_data();
 			*root_bin_ = _data.get_root();
 
-			work_sig_ = hash_t(NULL, _data.get_siglen());
+			work_sig_ = hash_t(nullptr, _data.get_siglen());
 			work_sig_.digest_ = _data.get_data() + sizeof(bin_t);
 
 			data_ = _data.get_data() + sizeof(bin_t) + _data.get_siglen();
-			root_sig_ = hash_t(NULL, _data.get_siglen());
+			root_sig_ = hash_t(nullptr, _data.get_siglen());
 			read(*root_bin_, root_sig_);
 		}
 
@@ -278,11 +278,11 @@ namespace xcore
 			root_bin_ = (bin_t*)_data.get_data();
 			*root_bin_ = _data.get_root();
 
-			work_sig_ = hash_t(NULL, _data.get_siglen());
+			work_sig_ = hash_t(nullptr, _data.get_siglen());
 			work_sig_.digest_ = _data.get_data() + sizeof(bin_t);
 
 			data_ = _data.get_data() + sizeof(bin_t) + _data.get_siglen();
-			root_sig_ = hash_t(NULL, _data.get_siglen());
+			root_sig_ = hash_t(nullptr, _data.get_siglen());
 			read(*root_bin_, root_sig_);
 
 			u32 const data_size = data_t::size_for(*root_bin_, _data.get_siglen()) - sizeof(bin_t);

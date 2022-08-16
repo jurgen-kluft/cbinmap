@@ -4,7 +4,7 @@
 
 #include "xbinmaps/binmap.h"
 
-namespace xcore
+namespace ncore
 {
 	namespace binmaps
 	{
@@ -350,12 +350,12 @@ namespace xcore
 						u32 const lo = (u32)(il.value() >> 3);
 						u32 const ro = (u32)(ir.value() >> 3);
 
-						xbyte const lm = 0xFF >> (il.value() & 0x07);
-						xbyte const rm = (xbyte)(0xFF80 >> (ir.value() & 0x07));
+						u8 const lm = 0xFF >> (il.value() & 0x07);
+						u8 const rm = (u8)(0xFF80 >> (ir.value() & 0x07));
 
 						{
-							xbyte* lb = binmap0_ + lo;
-							xbyte* rb = binmap0_ + ro;
+							u8* lb = binmap0_ + lo;
+							u8* rb = binmap0_ + ro;
 
 							s32 const d = ro - lo;
 							if (d == 0)
@@ -410,12 +410,12 @@ namespace xcore
 						u32 const lo = (u32)(il.value() >> 3);
 						u32 const ro = (u32)(ir.value() >> 3);
 
-						xbyte const lm = 0xFF >> (il.value() & 0x07);
-						xbyte const rm = (xbyte)(0xFF80 >> (ir.value() & 0x07));
+						u8 const lm = 0xFF >> (il.value() & 0x07);
+						u8 const rm = (u8)(0xFF80 >> (ir.value() & 0x07));
 
 						{
-							xbyte* lb = binmap1_ + lo;
-							xbyte* rb = binmap1_ + ro;
+							u8* lb = binmap1_ + lo;
+							u8* rb = binmap1_ + ro;
 							s32 const d = ro - lo;
 							if (d == 0)
 							{
@@ -494,12 +494,12 @@ namespace xcore
 						u32 const llo = (u32)(il.value() >> 3);
 						u32 const lro = (u32)(ir.value() >> 3);
 
-						xbyte const lm = (xbyte)(0xFF00 >> (il.value() & 0x07));
-						xbyte const rm = 0x7F >> (ir.value() & 0x07);
+						u8 const lm = (u8)(0xFF00 >> (il.value() & 0x07));
+						u8 const rm = 0x7F >> (ir.value() & 0x07);
 
 						{
-							xbyte* lb = binmap0_ + llo;
-							xbyte* rb = binmap0_ + lro;
+							u8* lb = binmap0_ + llo;
+							u8* rb = binmap0_ + lro;
 
 							s32 const d = (s32)(rb - lb);
 							if (d == 0)
@@ -551,12 +551,12 @@ namespace xcore
 						u32 const llo = (u32)(il.value() >> 3);
 						u32 const lro = (u32)(ir.value() >> 3);
 
-						xbyte const lm = (xbyte)(0xFF00 >> (il.value() & 0x07));
-						xbyte const rm = 0x7F >> (ir.value() & 0x07);
+						u8 const lm = (u8)(0xFF00 >> (il.value() & 0x07));
+						u8 const rm = 0x7F >> (ir.value() & 0x07);
 
 						{
-							xbyte* lb = binmap1_ + llo;
-							xbyte* rb = binmap1_ + lro;
+							u8* lb = binmap1_ + llo;
+							u8* rb = binmap1_ + lro;
 
 							s32 const d = (s32)(rb - lb);
 							if (d == 0)
@@ -607,7 +607,7 @@ namespace xcore
 		/**
 		* Get total size of the binmap
 		*/
-		xsize_t cbinmap::total_size() const
+		uint_t cbinmap::total_size() const
 		{
 			u32 const binmap_size = (u32)(((binroot_->base_length() * 2) + 7) / 8);
 			return sizeof(binmap) + binmap_size + binmap_size;

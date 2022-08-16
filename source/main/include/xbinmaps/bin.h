@@ -3,7 +3,7 @@
 #include "xbase/x_target.h"
 #include "xbase/x_debug.h"
 
-namespace xcore
+namespace ncore
 {
 	//  
 	//  Numbering for (aligned) logarithmic bins.

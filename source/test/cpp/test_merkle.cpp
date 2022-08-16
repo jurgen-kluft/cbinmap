@@ -6,5 +6,5 @@
 #include "xbinmaps/merkle.h"
 #include "xunittest/xunittest.h"
 
-using namespace xcore;
+using namespace ncore;
 

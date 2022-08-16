@@ -5,11 +5,11 @@
 #include "xbase/x_debug.h"
 #include "xbinmaps/bin.h"
 
-namespace xcore 
+namespace ncore 
 {
 	namespace binmaps
 	{
-		typedef		xbyte		byte;
+		typedef		u8		byte;
 
 		class data
 		{
@@ -21,7 +21,7 @@ namespace xcore
 
 		protected:
 			inline					data() : root_(bin_t::NONE), data_(0) {}
-			inline					data(bin_t _root, xbyte* _data) : root_(_root), data_(_data) {}
+			inline					data(bin_t _root, u8* _data) : root_(_root), data_(_data) {}
 
 			bin_t					root_;
 			byte*					data_;
@@ -30,7 +30,7 @@ namespace xcore
 		class user_data : public data
 		{
 		public:
-			inline					user_data(bin_t _root, xbyte* _data) : data(_root, _data) {}
+			inline					user_data(bin_t _root, u8* _data) : data(_root, _data) {}
 		};
 
 
@@ -60,7 +60,7 @@ namespace xcore
 			bin_t			find_filled() const;
 			bin_t			find_empty(bin_t start) const;
 
-			xsize_t			total_size() const;
+			uint_t			total_size() const;
 
 			bool			read_am_at(bin_t) const;
 			bool			read_om_at(bin_t) const;
@@ -69,8 +69,8 @@ namespace xcore
 			friend class binmap;
 
 			bin_t*			binroot_;
-			xbyte*			binmap1_;				// the AND binmap with bit '0' = empty, bit '1' = full, parent = [left-child] & [right-child]
-			xbyte*			binmap0_;				// the  OR binmap with bit '0' = empty, bit '1' = full, parent = [left-child] | [right-child]
+			u8*			binmap1_;				// the AND binmap with bit '0' = empty, bit '1' = full, parent = [left-child] & [right-child]
+			u8*			binmap0_;				// the  OR binmap with bit '0' = empty, bit '1' = full, parent = [left-child] | [right-child]
 		};
 
 		// 
@@ -116,7 +116,7 @@ namespace xcore
 		*/
 		inline bin_t const& cbinmap::root() const
 		{
-			return binroot_!=NULL ? *binroot_ : bin_t::NONE;
+			return binroot_!=nullptr ? *binroot_ : bin_t::NONE;
 		}
 
 		/**
@@ -125,8 +125,8 @@ namespace xcore
 		inline bool	cbinmap::read_am_at(bin_t _bin) const
 		{
 			ASSERT(binroot_->contains(_bin));
-			xbyte const* byte = binmap1_ + (_bin.value() >> 3);
-			xbyte const  bit  = 0x80 >> (_bin.value() & 0x07);
+			u8 const* byte = binmap1_ + (_bin.value() >> 3);
+			u8 const  bit  = 0x80 >> (_bin.value() & 0x07);
 			return (*byte & bit) == bit;
 		}
 
@@ -136,8 +136,8 @@ namespace xcore
 		inline s32 binmap::write_am_at(bin_t _bin, bool _in_value)
 		{
 			ASSERT(binroot_->contains(_bin));
-			xbyte     * byte = binmap1_ + (_bin.value() >> 3);
-			xbyte const bit  = 0x80 >> (_bin.value() & 0x07);
+			u8     * byte = binmap1_ + (_bin.value() >> 3);
+			u8 const bit  = 0x80 >> (_bin.value() & 0x07);
 			if (_in_value) *byte = *byte | bit;
 			else *byte = *byte & ~bit;
 			return 0;
@@ -149,8 +149,8 @@ namespace xcore
 		inline bool binmap::xchg_am_at(bin_t _bin, bool _in_value)
 		{
 			ASSERT(binroot_->contains(_bin));
-			xbyte     * byte = binmap1_ + (_bin.value() >> 3);
-			xbyte const bit  = 0x80 >> (_bin.value() & 0x07);
+			u8     * byte = binmap1_ + (_bin.value() >> 3);
+			u8 const bit  = 0x80 >> (_bin.value() & 0x07);
 			bool old_value = (*byte & bit) != 0;
 			if (_in_value) *byte = *byte | bit;
 			else *byte = *byte & ~bit;
@@ -163,8 +163,8 @@ namespace xcore
 		inline bool	cbinmap::read_om_at(bin_t _bin) const
 		{
 			ASSERT(binroot_->contains(_bin));
-			xbyte const* byte = binmap0_ + (_bin.value() >> 3);
-			xbyte const  bit  = 0x80 >> (_bin.value() & 0x07);
+			u8 const* byte = binmap0_ + (_bin.value() >> 3);
+			u8 const  bit  = 0x80 >> (_bin.value() & 0x07);
 			return (*byte & bit) == bit;
 		}
 
@@ -174,8 +174,8 @@ namespace xcore
 		inline s32 binmap::write_om_at(bin_t _bin, bool _in_value)
 		{
 			ASSERT(binroot_->contains(_bin));
-			xbyte     * byte = binmap0_ + (_bin.value() >> 3);
-			xbyte const bit  = 0x80 >> (_bin.value() & 0x07);
+			u8     * byte = binmap0_ + (_bin.value() >> 3);
+			u8 const bit  = 0x80 >> (_bin.value() & 0x07);
 			if (_in_value) *byte = *byte | bit;
 			else *byte = *byte & ~bit;
 			return 0;
@@ -187,8 +187,8 @@ namespace xcore
 		inline bool binmap::xchg_om_at(bin_t _bin, bool _in_value)
 		{
 			ASSERT(binroot_->contains(_bin));
-			xbyte     * byte = binmap0_ + (_bin.value() >> 3);
-			xbyte const bit  = 0x80 >> (_bin.value() & 0x07);
+			u8     * byte = binmap0_ + (_bin.value() >> 3);
+			u8 const bit  = 0x80 >> (_bin.value() & 0x07);
 			bool old_value = (*byte & bit) != 0;
 			if (_in_value) *byte = *byte | bit;
 			else *byte = *byte & ~bit;
