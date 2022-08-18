@@ -1,6 +1,6 @@
 #include "cbinmaps/bin.h"
 #include "cbinmaps/utils.h"
-#include "cunittest/xunittest.h"
+#include "cunittest/cunittest.h"
 
 using namespace ncore;
 

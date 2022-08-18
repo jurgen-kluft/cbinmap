@@ -4,7 +4,7 @@
 #include "cbase/c_memory.h"
 #include "cbase/c_integer.h"
 #include "cbinmaps/merkle.h"
-#include "cunittest/xunittest.h"
+#include "cunittest/cunittest.h"
 
 using namespace ncore;
 
