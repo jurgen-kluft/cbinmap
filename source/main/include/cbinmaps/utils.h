@@ -1,5 +1,5 @@
-#ifndef __XBINMAPS_BIN_UTILS_H__
-#define __XBINMAPS_BIN_UTILS_H__
+#ifndef __CBINMAPS_BIN_UTILS_H__
+#define __CBINMAPS_BIN_UTILS_H__
 #include "cbase/c_target.h"
 #include "cbinmaps/bin.h"
 
@@ -95,4 +95,4 @@ namespace ncore
 }
 
 
-#endif // __XBINMAPS_BIN_UTILS_H__
+#endif // __CBINMAPS_BIN_UTILS_H__

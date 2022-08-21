@@ -1,5 +1,5 @@
-#ifndef __XBINMAP_BINMAP_H__
-#define __XBINMAP_BINMAP_H__
+#ifndef __CBINMAP_BINMAP_H__
+#define __CBINMAP_BINMAP_H__
 #include "cbase/c_target.h"
 
 #include "cbase/c_debug.h"
@@ -199,4 +199,4 @@ namespace ncore
 
 } // namespace end
 
-#endif // __XBINMAP_BINMAP_H__
+#endif // __CBINMAP_BINMAP_H__

@@ -1,6 +1,6 @@
 ﻿// x_sigmap.h - Core Signature Map
-#ifndef __XSIGV_SIGMAP_H__
-#define __XSIGV_SIGMAP_H__
+#ifndef __CSIGV_SIGMAP_H__
+#define __CSIGV_SIGMAP_H__
 #include "cbase/c_target.h"
 #ifdef USE_PRAGMA_ONCE
 #pragma once
@@ -187,4 +187,4 @@ namespace ncore
 	}
 
 }
-#endif	// __XSIGV_SIGMAP_H__
+#endif	// __CSIGV_SIGMAP_H__
