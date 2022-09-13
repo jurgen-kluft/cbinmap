@@ -28,9 +28,9 @@ UNITTEST_SUITE_BEGIN(binmap2)
 
 		void clear_data()
 		{
-			x_memzero(data1, data_size);
-			x_memzero(data2, data_size);
-			x_memzero(data3, data_size);
+			nmem::memclr(data1, data_size);
+			nmem::memclr(data2, data_size);
+			nmem::memclr(data3, data_size);
 		}
 
 		UNITTEST_FIXTURE_SETUP() 

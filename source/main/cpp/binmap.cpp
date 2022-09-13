@@ -589,8 +589,8 @@ namespace ncore
 		void binmap::clear()
 		{
 			u32 const binmap_size = (u32)(((binroot_->base_length() * 2) + 7) / 8);
-			x_memzero(binmap1_, binmap_size);
-			x_memzero(binmap0_, binmap_size);
+			nmem::memclr(binmap1_, binmap_size);
+			nmem::memclr(binmap0_, binmap_size);
 		}
 
 
@@ -619,8 +619,8 @@ namespace ncore
 			ASSERT(root() == _other.root());
 
 			u32 data_size = data::size_for(root());
-			x_memcpy(binmap1_, _other.binmap1_, data_size);
-			x_memcpy(binmap0_, _other.binmap0_, data_size);
+			nmem::memcpy(binmap1_, _other.binmap1_, data_size);
+			nmem::memcpy(binmap0_, _other.binmap0_, data_size);
 		}
 
 		/**

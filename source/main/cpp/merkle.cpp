@@ -286,7 +286,7 @@ namespace ncore
 			read(*root_bin_, root_sig_);
 
 			u32 const data_size = data_t::size_for(*root_bin_, _data.get_siglen()) - sizeof(bin_t);
-			x_memzero(_data.get_data() + sizeof(bin_t), data_size);
+			nmem::memclr(_data.get_data() + sizeof(bin_t), data_size);
 		}
 
 		s32				tree::builder::write(bin_t _bin, hash_t const& _sig)
