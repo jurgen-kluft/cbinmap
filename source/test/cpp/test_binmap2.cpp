@@ -7,6 +7,7 @@
 #include "cbinmaps/utils.h"
 
 #include "cunittest/cunittest.h"
+#include "cbinmaps/test_allocator.h"
 
 #include <random>
 
@@ -14,8 +15,6 @@ using namespace ncore;
 typedef	binmaps::binmap	binmap_t;
 
 #define CHECK_EQUAL_BIN_T(a, b) CHECK_EQUAL(a.value(), b.value());
-
-extern ncore::alloc_t* gTestAllocator;
 
 UNITTEST_SUITE_BEGIN(binmap2)
 {
@@ -33,18 +32,20 @@ UNITTEST_SUITE_BEGIN(binmap2)
 			nmem::memclr(data3, data_size);
 		}
 
+        UNITTEST_ALLOCATOR;
+
 		UNITTEST_FIXTURE_SETUP() 
 		{
 			data_size = binmaps::data::size_for(bin_t::to_root(1<<24));
-			data1 = (u8*)gTestAllocator->allocate(data_size, sizeof(void*));
-			data2 = (u8*)gTestAllocator->allocate(data_size, sizeof(void*));
-			data3 = (u8*)gTestAllocator->allocate(data_size, sizeof(void*));
+			data1 = (u8*)Allocator->allocate(data_size, sizeof(void*));
+			data2 = (u8*)Allocator->allocate(data_size, sizeof(void*));
+			data3 = (u8*)Allocator->allocate(data_size, sizeof(void*));
 		}
 		UNITTEST_FIXTURE_TEARDOWN() 
 		{
-			gTestAllocator->deallocate(data1);
-			gTestAllocator->deallocate(data2);
-			gTestAllocator->deallocate(data3);
+			Allocator->deallocate(data1);
+			Allocator->deallocate(data2);
+			Allocator->deallocate(data3);
 		}
 
 		UNITTEST_TEST(FindFiltered)
