@@ -3,7 +3,6 @@ package cbinmap
 import (
 	cbase "github.com/jurgen-kluft/cbase/package"
 	"github.com/jurgen-kluft/ccode/denv"
-	centry "github.com/jurgen-kluft/centry/package"
 	cunittest "github.com/jurgen-kluft/cunittest/package"
 )
 
@@ -11,13 +10,11 @@ import (
 func GetPackage() *denv.Package {
 	// Dependencies
 	unittestpkg := cunittest.GetPackage()
-	entrypkg := centry.GetPackage()
 	basepkg := cbase.GetPackage()
 
 	// The main (cbinmap) package
 	mainpkg := denv.NewPackage("cbinmap")
 	mainpkg.AddPackage(unittestpkg)
-	mainpkg.AddPackage(entrypkg)
 	mainpkg.AddPackage(basepkg)
 
 	// 'cbinmap' library
@@ -27,7 +24,6 @@ func GetPackage() *denv.Package {
 	// 'cbinmap' unittest project
 	maintest := denv.SetupDefaultCppTestProject("cbinmap_test", "github.com\\jurgen-kluft\\cbinmap")
 	maintest.Dependencies = append(maintest.Dependencies, unittestpkg.GetMainLib())
-	maintest.Dependencies = append(maintest.Dependencies, entrypkg.GetMainLib())
 	maintest.Dependencies = append(maintest.Dependencies, basepkg.GetMainLib())
 	maintest.Dependencies = append(maintest.Dependencies, mainlib)
 
