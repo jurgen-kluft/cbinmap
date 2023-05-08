@@ -1,7 +1,7 @@
 ﻿// x_sigmap.h - Core Signature Map
 #ifndef __CSIGV_SIGMAP_H__
 #define __CSIGV_SIGMAP_H__
-#include "cbase/c_target.h"
+#include "ccore/c_target.h"
 #ifdef USE_PRAGMA_ONCE
 #pragma once
 #endif

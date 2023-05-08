@@ -1,6 +1,6 @@
 #ifndef __CBINMAPS_BIN_UTILS_H__
 #define __CBINMAPS_BIN_UTILS_H__
-#include "cbase/c_target.h"
+#include "ccore/c_target.h"
 #include "cbinmaps/bin.h"
 
 namespace ncore
