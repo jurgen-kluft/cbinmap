@@ -24,7 +24,7 @@ namespace ncore
 			ASSERT(_src.length_ == _dst.length_);
 			ASSERT(_src.digest_ != nullptr);
 			ASSERT(_dst.digest_ != nullptr);
-			x_memcopy4((u32*)_dst.digest_, (u32 const*)_src.digest_, _src.length_ / 4);
+			g_memcopy4((u32*)_dst.digest_, (u32 const*)_src.digest_, _src.length_ / 4);
 		}
 
 		bool	are_equal (hash_t const& _a, hash_t const& _b)

@@ -2,7 +2,8 @@ package cbinmap
 
 import (
 	cbase "github.com/jurgen-kluft/cbase/package"
-	"github.com/jurgen-kluft/ccode/denv"
+	denv "github.com/jurgen-kluft/ccode/denv"
+	ccore "github.com/jurgen-kluft/ccore/package"
 	cunittest "github.com/jurgen-kluft/cunittest/package"
 )
 
@@ -10,21 +11,25 @@ import (
 func GetPackage() *denv.Package {
 	// Dependencies
 	unittestpkg := cunittest.GetPackage()
-	basepkg := cbase.GetPackage()
+	cbasepkg := cbase.GetPackage()
+	ccorepkg := ccore.GetPackage()
 
 	// The main (cbinmap) package
 	mainpkg := denv.NewPackage("cbinmap")
 	mainpkg.AddPackage(unittestpkg)
-	mainpkg.AddPackage(basepkg)
+	mainpkg.AddPackage(cbasepkg)
+	mainpkg.AddPackage(ccorepkg)
 
 	// 'cbinmap' library
 	mainlib := denv.SetupDefaultCppLibProject("cbinmap", "github.com\\jurgen-kluft\\cbinmap")
-	mainlib.Dependencies = append(mainlib.Dependencies, basepkg.GetMainLib())
+	mainlib.Dependencies = append(mainlib.Dependencies, cbasepkg.GetMainLib())
+	mainlib.Dependencies = append(mainlib.Dependencies, ccorepkg.GetMainLib())
 
 	// 'cbinmap' unittest project
 	maintest := denv.SetupDefaultCppTestProject("cbinmap_test", "github.com\\jurgen-kluft\\cbinmap")
 	maintest.Dependencies = append(maintest.Dependencies, unittestpkg.GetMainLib())
-	maintest.Dependencies = append(maintest.Dependencies, basepkg.GetMainLib())
+	maintest.Dependencies = append(maintest.Dependencies, cbasepkg.GetMainLib())
+	maintest.Dependencies = append(maintest.Dependencies, ccorepkg.GetMainLib())
 	maintest.Dependencies = append(maintest.Dependencies, mainlib)
 
 	mainpkg.AddMainLib(mainlib)
