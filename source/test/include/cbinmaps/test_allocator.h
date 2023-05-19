@@ -5,7 +5,7 @@
 #pragma once
 #endif
 
-#include "cbase/c_allocator.h"
+#include "ccore/c_allocator.h"
 #include "cunittest/private/ut_Config.h"
 
 class test_alloc_t : public ncore::alloc_t
