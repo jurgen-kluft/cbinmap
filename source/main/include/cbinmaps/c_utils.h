@@ -1,14 +1,14 @@
 #ifndef __CBINMAPS_BIN_UTILS_H__
 #define __CBINMAPS_BIN_UTILS_H__
 #include "ccore/c_target.h"
-#include "cbinmaps/bin.h"
+#include "cbinmaps/c_bin.h"
 
 namespace ncore
 {
 	/**
 	 * Generating a list of peak bins for corresponding length
 	 */
-	inline s32 gen_peaks(u64 length, bin_t * peaks) 
+	inline s32 gen_peaks(u64 length, bin_t * peaks)
 	{
 		s32 pp = 0;
 		u8 layer = 0;
@@ -74,7 +74,7 @@ namespace ncore
 	/**
 	 * Restore the bin from an u32 value
 	 */
-	inline bin_t bin_fromUInt32(u32 v) 
+	inline bin_t bin_fromUInt32(u32 v)
 	{
 		if( v == 0x7fffffff )
 			return bin_t::ALL;

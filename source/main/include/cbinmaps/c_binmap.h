@@ -3,47 +3,23 @@
 #include "ccore/c_target.h"
 
 #include "ccore/c_debug.h"
-#include "cbinmaps/bin.h"
+#include "cbinmaps/c_bin.h"
 
-namespace ncore 
+namespace ncore
 {
 	namespace binmaps
 	{
 		typedef		u8		byte;
 
-		class data
+		//
+		// binmap class
+		//
+		class binmap
 		{
 		public:
-			bin_t					get_root() const				{ return root_; }
-			byte*					get_data() const				{ return data_; }
-
-			static u32				size_for(bin_t _root);
-
-		protected:
-			inline					data() : root_(bin_t::NONE), data_(0) {}
-			inline					data(bin_t _root, u8* _data) : root_(_root), data_(_data) {}
-
-			bin_t					root_;
-			byte*					data_;
-		};
-
-		class user_data : public data
-		{
-		public:
-			inline					user_data(bin_t _root, u8* _data) : data(_root, _data) {}
-		};
-
-
-		// 
-		// const binmap class
-		// 
-		class cbinmap
-		{
-		public:
-							cbinmap();
-							cbinmap(user_data);
-							cbinmap(data&);
-							cbinmap(const cbinmap&);
+							binmap();
+							binmap(bin_t root, byte* data);
+							binmap(const binmap&);
 
 			bin_t const&	root() const;
 
@@ -65,32 +41,11 @@ namespace ncore
 			bool			read_am_at(bin_t) const;
 			bool			read_om_at(bin_t) const;
 
-		protected:
-			friend class binmap;
-
-			bin_t*			binroot_;
-			u8*			binmap1_;				// the AND binmap with bit '0' = empty, bit '1' = full, parent = [left-child] & [right-child]
-			u8*			binmap0_;				// the  OR binmap with bit '0' = empty, bit '1' = full, parent = [left-child] | [right-child]
-		};
-
-		// 
-		// binmap class
-		// 
-		class binmap : public cbinmap
-		{
-		public:
-							binmap();
-							binmap(user_data);
-							binmap(data&);
-							binmap(const binmap&);
-
 			void			clear();
 			void			fill();
 
 			void			set(const bin_t& bin);
 			void			reset(const bin_t& bin);
-
-			void			copy_from(cbinmap const&);
 
 		protected:
 			s32				write_am_at(bin_t, bool);
@@ -100,16 +55,20 @@ namespace ncore
 			bool			xchg_om_at(bin_t, bool);
 
 			binmap&			operator = (const binmap&);
+
+			bin_t*	binroot_;
+			u8*	    binmap1_;				// the AND binmap with bit '0' = empty, bit '1' = full, parent = [left-child] & [right-child]
+			u8*	    binmap0_;				// the  OR binmap with bit '0' = empty, bit '1' = full, parent = [left-child] | [right-child]
 		};
 
-		// 
-		// binmap utility, static functions 
-		// 
-		extern bin_t	find_complement(const cbinmap& destination, const cbinmap& source, const bin_t::uint_t twist);
-		extern bin_t	find_complement(const cbinmap& destination, const cbinmap& source, bin_t range, const bin_t::uint_t twist);
+		//
+		// binmap utility, static functions
+		//
+		extern bin_t	find_complement(const binmap& destination, const binmap& source, const bin_t::uint_t twist);
+		extern bin_t	find_complement(const binmap& destination, const binmap& source, bin_t range, const bin_t::uint_t twist);
 
-		extern void		copy(binmap& destination, const cbinmap& source);
-		extern void		copy(binmap& destination, const cbinmap& source, const bin_t& range);
+		extern void		copy(binmap& destination, const binmap& source);
+		extern void		copy(binmap& destination, const binmap& source, const bin_t& range);
 
 		/**
 		* Return the current root of the binmap

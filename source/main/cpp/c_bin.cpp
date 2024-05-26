@@ -1,5 +1,5 @@
-#include "cbase/c_integer.h" 
-#include "cbinmaps/bin.h"
+#include "cbase/c_integer.h"
+#include "cbinmaps/c_bin.h"
 
 namespace ncore
 {
@@ -15,7 +15,7 @@ namespace ncore
 	*/
 	s32 bin_t::layer(void) const
 	{
-		if (is_none()) 
+		if (is_none())
 		{
 			return -1;
 		}
@@ -26,7 +26,7 @@ namespace ncore
 		tail = v_ + 1;
 		tail = tail & (0 - tail);
 
-		if (tail > 0x80000000U) 
+		if (tail > 0x80000000U)
 		{
 			r = 32;
 			tail >>= 16;
@@ -41,7 +41,7 @@ namespace ncore
 
 	/* String operations */
 
-	namespace 
+	namespace
 	{
 
 		char* append(char* buf, s32 x)
@@ -88,7 +88,7 @@ namespace ncore
 
 			char* e = r--;
 
-			while (l < r) 
+			while (l < r)
 			{
 				const char t = *l;
 				*l++ = *r;
@@ -104,7 +104,7 @@ namespace ncore
 		{
 			char* e = buf;
 
-			while (*s) 
+			while (*s)
 			{
 				*e++ = *s++;
 			}
@@ -152,11 +152,11 @@ namespace ncore
 	{
 		char* e = buf;
 
-		if (is_all()) 
+		if (is_all())
 		{
 			e = append(e, "(ALL)");
 		}
-		else if (is_none()) 
+		else if (is_none())
 		{
 			e = append(e, "(NONE)");
 		}

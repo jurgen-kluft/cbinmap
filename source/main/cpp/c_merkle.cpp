@@ -1,7 +1,8 @@
 #include "ccore/c_target.h"
 #include "cbase/c_integer.h"
 #include "cbase/c_memory.h"
-#include "cbinmaps/merkle.h"
+
+#include "cbinmaps/c_merkle.h"
 
 namespace ncore
 {
@@ -232,7 +233,7 @@ namespace ncore
 			// The branch is valid, proceed
 
 			iter = _bin;
-			
+
 			i = 0;
 
 			hash_t base_sig;
@@ -273,7 +274,7 @@ namespace ncore
 		tree::builder::builder(data_t& _data, hash_t const& _rootsig, combine_f _sigcombiner)
 			: combine_f_(_sigcombiner)
 			, root_bin_(0)
-			, data_(0)		
+			, data_(0)
 		{
 			root_bin_ = (bin_t*)_data.get_data();
 			*root_bin_ = _data.get_root();

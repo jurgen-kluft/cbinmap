@@ -2,79 +2,41 @@
 #include "cbase/c_memory.h"
 #include "cbase/c_runes.h"
 
-#include "cbinmaps/binmap.h"
+#include "cbinmaps/c_binmap.h"
 
 namespace ncore
 {
 	namespace binmaps
 	{
-		u32	data::size_for(bin_t _root)
+		static inline u32	data_size_for(bin_t _root)
 		{
 			u32 const data_size = (u32)(((((_root.base_length() * 2) + 7) / 8) * 2) + sizeof(bin_t));
 			return data_size;
 		}
 
-		/**
-		* Constructor
-		*/
-		cbinmap::cbinmap()
-			: binroot_(0)
-			, binmap1_(0)
-			, binmap0_(0)
-		{
-
-		}
-
-		cbinmap::cbinmap(user_data _data)
-			: binroot_(0)
-			, binmap1_(0)
-			, binmap0_(0)
-		{
-			binroot_ = (bin_t*)_data.get_data();
-			*binroot_ = _data.get_root();
-
-			u32 const binmap_size = (data::size_for(_data.get_root()) - sizeof(bin_t)) / 2;
-			binmap1_ = _data.get_data() + sizeof(bin_t);
-			binmap0_ = binmap1_ + binmap_size;
-		}
-
-		cbinmap::cbinmap(data& _data)
-			: binroot_(0)
-			, binmap1_(0)
-			, binmap0_(0)
-		{
-			binroot_ = (bin_t*)_data.get_data();
-			*binroot_ = _data.get_root();
-
-			u32 const binmap_size = (data::size_for(_data.get_root()) - sizeof(bin_t)) / 2;
-			binmap1_ = _data.get_data() + sizeof(bin_t);
-			binmap0_ = binmap1_ + binmap_size;
-		}
-
-		/**
-		* Constructor
-		*/
 		binmap::binmap()
-			: cbinmap()
+            : binroot_(nullptr)
+            , binmap1_(nullptr)
+            , binmap0_(nullptr)
 		{
 		}
 
-		binmap::binmap(user_data _data)
-			: cbinmap(_data)
+		binmap::binmap(bin_t root, byte* data)
+			: binroot_((bin_t*)data)
+			, binmap1_(data + sizeof(bin_t))
+			, binmap0_(0)
 		{
+			*binroot_ = root;
 
+			u32 const binmap_size = (data_size_for(root) - sizeof(bin_t)) / 2;
+			binmap0_ = binmap1_ + binmap_size;
 		}
 
-		binmap::binmap(data& _data)
-			: cbinmap(_data)
-		{
-
-		}
 
 		/**
 		* Whether binmap is empty
 		*/
-		bool cbinmap::is_empty() const
+		bool binmap::is_empty() const
 		{
 			bool const r = read_om_at(*binroot_);
 			return !r;
@@ -84,7 +46,7 @@ namespace ncore
 		/**
 		* Whether binmap is filled
 		*/
-		bool cbinmap::is_filled() const
+		bool binmap::is_filled() const
 		{
 			return is_filled(*binroot_);
 		}
@@ -93,7 +55,7 @@ namespace ncore
 		/**
 		* Whether range/bin is empty
 		*/
-		bool cbinmap::is_empty(const bin_t& bin) const
+		bool binmap::is_empty(const bin_t& bin) const
 		{
 			bool r = false;
 			if (bin == bin_t::ALL)
@@ -112,7 +74,7 @@ namespace ncore
 		/**
 		* Whether range/bin is filled
 		*/
-		bool cbinmap::is_filled(const bin_t& bin) const
+		bool binmap::is_filled(const bin_t& bin) const
 		{
 			bool v = false;
 			if (bin == bin_t::ALL)
@@ -131,7 +93,7 @@ namespace ncore
 		/**
 		* Return the topmost solid bin which covers the specified bin
 		*/
-		bin_t cbinmap::cover(const bin_t& bin) const
+		bin_t binmap::cover(const bin_t& bin) const
 		{
 			bin_t i(bin);
 			bool v = read_am_at(i);
@@ -153,7 +115,7 @@ namespace ncore
 		/**
 		* Find first empty bin
 		*/
-		bin_t cbinmap::find_empty() const
+		bin_t binmap::find_empty() const
 		{
 			return find_empty(*binroot_);
 		}
@@ -162,7 +124,7 @@ namespace ncore
 		/**
 		* Find first filled bin
 		*/
-		bin_t cbinmap::find_filled() const
+		bin_t binmap::find_filled() const
 		{
 			// Can we can find a filled bin in this sub-tree?
 			if (read_om_at(*binroot_)==false)
@@ -188,7 +150,7 @@ namespace ncore
 		/**
 		* Find first empty bin right of start (start inclusive)
 		*/
-		bin_t cbinmap::find_empty(bin_t start) const
+		bin_t binmap::find_empty(bin_t start) const
 		{
 			ASSERT(start != bin_t::ALL);
 
@@ -259,12 +221,12 @@ namespace ncore
 		* @param source
 		*             the source binmap
 		*/
-		bin_t find_complement(const cbinmap& destination, const cbinmap& source, const bin_t::uint_t twist)
+		bin_t find_complement(const binmap& destination, const binmap& source, const bin_t::uint_t twist)
 		{
 			return find_complement(destination, source, source.root(), twist);
 		}
 
-		bin_t find_complement(const cbinmap& destination, const cbinmap& source, bin_t range, const bin_t::uint_t twist)
+		bin_t find_complement(const binmap& destination, const binmap& source, bin_t range, const bin_t::uint_t twist)
 		{
 			ASSERT(source.root().contains(range));
 			ASSERT(destination.root().contains(range));
@@ -321,9 +283,9 @@ namespace ncore
 
 				// check if this action is changing the value to begin with
 				// if not we can do an early-out
-			
+
 				// binmap0_
-				{		
+				{
 					if (xchg_om_at(bin, true) == false)
 					{
 						bin_t ib = bin;
@@ -380,7 +342,7 @@ namespace ncore
 				}
 
 				// binmap1_
-				{				
+				{
 
 					if (!xchg_am_at(bin, true))
 					{
@@ -449,7 +411,7 @@ namespace ncore
 		*/
 		void binmap::reset(const bin_t& bin)
 		{
-			if (bin.is_none()) 
+			if (bin.is_none())
 				return;
 
 			if (bin == *binroot_ || bin == bin_t::ALL)
@@ -465,7 +427,7 @@ namespace ncore
 				// if not we can do an early-out
 
 				// binmap0_
-				{	
+				{
 					if (xchg_om_at(bin, false))
 					{
 						bin_t ib = bin;
@@ -526,7 +488,7 @@ namespace ncore
 				// check if this action is changing the value to begin with
 				// if not we can do an early-out
 				// binmap1_
-				{				
+				{
 					if (xchg_am_at(bin, false))
 					{
 						bin_t ib = bin;
@@ -607,35 +569,16 @@ namespace ncore
 		/**
 		* Get total size of the binmap
 		*/
-		uint_t cbinmap::total_size() const
+		uint_t binmap::total_size() const
 		{
 			u32 const binmap_size = (u32)(((binroot_->base_length() * 2) + 7) / 8);
 			return sizeof(binmap) + binmap_size + binmap_size;
 		}
 
-		void	binmap::copy_from(cbinmap const& _other)
-		{
-			ASSERT(root() != bin_t::NONE);
-			ASSERT(root() == _other.root());
-
-			u32 data_size = data::size_for(root());
-			nmem::memcpy(binmap1_, _other.binmap1_, data_size);
-			nmem::memcpy(binmap0_, _other.binmap0_, data_size);
-		}
-
-		/**
-		* Copy a binmap to another
-		*/
-		void copy(binmap& destination, const cbinmap& source)
-		{
-			destination.copy_from(source);
-		}
-
-
 		/**
 		* Copy a range from one binmap to another binmap
 		*/
-		void copy(binmap& destination, const cbinmap& source, const bin_t& range)
+		void copy(binmap& destination, const binmap& source, const bin_t& range)
 		{
 			if (!source.read_om_at(range))
 			{

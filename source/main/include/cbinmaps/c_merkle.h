@@ -6,12 +6,12 @@
 #pragma once
 #endif
 
-#include "cbinmaps/bin.h"
+#include "cbinmaps/c_bin.h"
 
 namespace ncore
 {
 	namespace merkle
-	{	
+	{
 		typedef		u8		byte;
 
 		struct hash_t
@@ -34,18 +34,18 @@ namespace ncore
 		 * @group		ncore::merkle
 		 * @brief		Merkle-Tree implementation used for content validation
 		 * @URL         Reference -> http://www.merkle.com/‎
-		 * 
+		 *
 		 * @required    @_rootsig is the root signature
 		 *				@_max_bins is the number of bins
 		 *				@_sigcombiner can combine 2 signatures into 1
 		 *				@_allocator allocator for allocating nodes and signatures
 		 *
-		 * @behavior	The merkle tree will allocate once for the full tree 
-		 * 
+		 * @behavior	The merkle tree will allocate once for the full tree
+		 *
 		 * @example		You want to set a signature on it's bin :
-		 *              
+		 *
 		 *                sigmap->submit(bin_t(sig_bin), sig);
-		 *              
+		 *
 		*/
 
 		struct branch_t
@@ -129,7 +129,7 @@ namespace ncore
 				bool					valid() const;
 
 				s32						write(bin_t _bin, hash_t const& _signature);	// return: 1=added, -1 if this was the last signature of a trusted sub-tree that failed to result in the trusted signature
-				
+
 				bool					build();
 				bool					build_and_verify(hash_t const& _root_signature);
 
